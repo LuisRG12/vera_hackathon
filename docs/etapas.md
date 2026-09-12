@@ -15,7 +15,7 @@ Etapas definidas y arquitectura investigada. Sin código todavía.
 - [x] Voice Agent API evaluado y descartado, con la razón por escrito
 - [x] Licencia, `.gitignore`, procedencia declarada
 
-## Etapa 1 — El oído
+## Etapa 1 — El oído ✅
 
 Sustituir el reconocimiento local por AssemblyAI. **Es la compuerta del
 proyecto**: si el español en streaming no se comporta, nada de lo demás importa.
@@ -29,7 +29,7 @@ proyecto**: si el español en streaming no se comporta, nada de lo demás import
 - [x] Fin de turno en `max_accuracy`: aguanta las pausas de un paciente sin
       partirle la frase
 - [x] Cierre por inactividad, porque se factura por conexión abierta
-- [ ] **Prueba a mano:** medir la latencia de cierre de turno
+- [x] **Prueba a mano:** cierre de turno en 0,6–0,9 s con voz real
 
 ## Etapa 2 — La cabeza
 

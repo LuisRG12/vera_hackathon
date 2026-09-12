@@ -29,7 +29,20 @@ cierra la conexión fuera de ese rango; el navegador entrega bloques de 8. Se
 acumula el audio en trozos de 100 ms dentro del cliente del servicio, no en el
 navegador: la regla es del servicio, así que la conoce quien le habla.
 
-**Primera prueba con voz real.** Transcribe español colombiano correctamente y
-reconoce los términos clínicos cargados. Dos cosas por resolver: el corte de
-turno parte frases a la mitad de forma inconsistente, y la conexión se factura
-por tiempo abierto, así que no puede quedarse viva cuando nadie habla.
+**Corte de turno.** El modo por defecto del servicio comprueba el fin de turno a
+los 128 ms de silencio y partía las frases en pedazos. Un paciente recién
+operado pausa mucho más que eso — es el mismo hallazgo que ya se había medido
+con el reconocedor anterior, donde el umbral tuvo que subir al pasar de audio
+sintético a micrófono real. Se sube a `max_accuracy`: 512 ms para la
+comprobación y 2560 ms para el corte forzado.
+
+**Cierre por inactividad.** El servicio factura por tiempo de conexión abierta,
+no por audio enviado, así que la llamada se cierra sola tras 45 segundos sin
+voz. Habrá que revisar ese número cuando exista el diálogo, porque entonces el
+silencio del paciente mientras habla el agente es parte normal de la llamada.
+
+**Etapa cerrada.** Con voz real, el turno cierra entre 0,6 y 0,9 segundos
+después de dejar de hablar, y aguanta entera una frase con muletilla y
+autocorrección a la mitad — «me operaron de apendicitis, cierto, y de la herida
+me está saliendo un, saliendo un líquido amarillo»—. Los términos clínicos
+cargados se reconocen.
