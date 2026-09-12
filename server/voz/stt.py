@@ -33,6 +33,17 @@ import websockets
 
 from server.config import settings
 
+# AssemblyAI rechaza trozos fuera de [50, 1000] ms y **cierra la conexión** con
+# error 3007. No es un aviso: la llamada se cae. El `AudioWorklet` del navegador
+# entrega bloques de 128 muestras —8 ms a 16 kHz— así que sin acumular aquí, una
+# llamada dura un segundo. Se comprobó midiendo (ver docs/bitacora.md, 12-sep).
+#
+# La acumulación vive en este módulo y no en el navegador a propósito: la regla
+# es de AssemblyAI, así que la conoce quien le habla. Cualquier otro cliente
+# —un arnés de pruebas, un archivo de audio— queda cubierto sin repetirla.
+MS_POR_ENVIO = 100
+MS_MINIMO = 50
+
 
 @dataclass(frozen=True)
 class Turno:
@@ -66,7 +77,13 @@ class Reconocedor:
         self._ws = None
         self._cola: asyncio.Queue[Turno | None] = asyncio.Queue()
         self._bomba: asyncio.Task | None = None
+        self._pendiente = bytearray()
+        self.error: str | None = None
         self.nombre = f"assemblyai:{settings.stt_modelo}"
+
+    def _bytes(self, ms: int) -> int:
+        """Cuántos bytes son `ms` de PCM 16 bits mono."""
+        return int(settings.stt_sample_rate * ms / 1000) * 2
 
     @property
     def disponible(self) -> bool:
@@ -116,6 +133,12 @@ class Reconocedor:
             async for bruto in self._ws:
                 m = json.loads(bruto)
                 tipo = m.get("type")
+                if tipo == "Error":
+                    # AssemblyAI avisa y CIERRA. Si esto se traga en silencio,
+                    # la llamada se muere sin que nadie sepa por qué —que fue
+                    # exactamente lo que pasó con el trozo de 8 ms—.
+                    self.error = f"{m.get('error_code')}: {m.get('error')}"
+                    break
                 if tipo == "Turn":
                     await self._cola.put(Turno(
                         texto=m.get("transcript", ""),
@@ -126,20 +149,34 @@ class Reconocedor:
                     ))
                 elif tipo == "Termination":
                     break
-        except websockets.ConnectionClosed:
-            # Cerrar es el final normal de una llamada, no un fallo que reportar.
-            pass
+        except websockets.ConnectionClosed as e:
+            # Cerrar es el final normal de una llamada. Solo es un fallo si el
+            # código no es de cierre limpio, y entonces hay que poder verlo.
+            recibido = getattr(e, "rcvd", None)
+            if recibido is not None and recibido.code not in (1000, 1001, 1005):
+                self.error = self.error or f"cierre {recibido.code}: {recibido.reason}"
         finally:
             await self._cola.put(None)
 
     async def enviar(self, pcm: bytes) -> None:
-        """Empuja audio. PCM 16 bits mono al sample rate configurado."""
+        """Acumula audio y lo suelta en trozos que AssemblyAI acepte.
+
+        PCM 16 bits mono al sample rate configurado. El que llama manda lo que
+        tenga, del tamaño que sea; el reparto correcto se hace aquí.
+        """
         if self._ws is None:
             await self.abrir()
+        self._pendiente += pcm
+        tope = self._bytes(MS_POR_ENVIO)
+        while len(self._pendiente) >= tope:
+            trozo, self._pendiente = bytes(self._pendiente[:tope]), self._pendiente[tope:]
+            await self._soltar(trozo)
+
+    async def _soltar(self, trozo: bytes) -> None:
         try:
-            await self._ws.send(pcm)
+            await self._ws.send(trozo)
         except websockets.ConnectionClosed as e:
-            raise ErrorSTT("se cayó la conexión con AssemblyAI") from e
+            raise ErrorSTT(self.error or "se cayó la conexión con AssemblyAI") from e
 
     async def eventos(self) -> AsyncIterator[Turno]:
         """Los turnos según llegan. Termina cuando se cierra la sesión."""
@@ -153,6 +190,9 @@ class Reconocedor:
         if self._ws is None:
             return
         try:
+            if len(self._pendiente) >= self._bytes(MS_MINIMO):
+                await self._soltar(bytes(self._pendiente))
+            self._pendiente.clear()
             await self._ws.send(json.dumps({"type": "Terminate"}))
             await asyncio.wait_for(self._bomba, timeout=5)
         except (websockets.ConnectionClosed, asyncio.TimeoutError, TypeError):

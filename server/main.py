@@ -83,6 +83,10 @@ async def llamada(ws: WebSocket):
                 "idioma": t.idioma,
                 "confianza_idioma": t.confianza_idioma,
             })
+        # Si el reconocedor se cayó por algo, que se vea en la pantalla y no
+        # solo en el log: quien prueba la llamada no está mirando la consola.
+        if stt.error:
+            await ws.send_json({"type": "error", "detalle": stt.error})
 
     subida = asyncio.create_task(del_navegador_a_assemblyai())
     bajada = asyncio.create_task(de_assemblyai_al_navegador())
