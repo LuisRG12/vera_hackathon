@@ -30,6 +30,24 @@ class Settings(BaseSettings):
     stt_idiomas: str = "es"
     stt_sample_rate: int = 16000
 
+    # Cómo decide dónde termina un turno.
+    #
+    # El modo por defecto del servicio es `balanced`, que corre la comprobación
+    # de fin de turno tras 128 ms de silencio. Un paciente recién operado
+    # —con dolor, mayor, buscando la palabra— pausa mucho más que eso, y la
+    # frase le sale partida en pedazos. Es el mismo hallazgo que ya se había
+    # medido con el reconocedor anterior, donde el umbral tuvo que subir de
+    # 0,6 s a 1,1 s al pasar de audio sintético a micrófono real.
+    #
+    # `max_accuracy` sube esa comprobación a 512 ms y el corte forzado a
+    # 2560 ms. Se paga algo de latencia y se compra que al paciente no se le
+    # interrumpa a media idea, que en esta conversación vale más.
+    stt_modo: str = "max_accuracy"
+
+    # Se factura por tiempo de conexión abierta, no por audio enviado. Un socket
+    # olvidado cuesta igual que una conversación. Esto lo cierra solo.
+    stt_inactividad_s: float = 45.0
+
     @property
     def stt_configurado(self) -> bool:
         return bool(self.assemblyai_api_key)

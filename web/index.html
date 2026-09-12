@@ -31,7 +31,7 @@ const btn = document.getElementById('btn');
 const estado = document.getElementById('estado');
 const vivo = document.getElementById('vivo');
 const turnos = document.getElementById('turnos');
-let ws, ctx, stream, t0;
+let ws, ctx, stream, t0, tParcial = 0;
 
 const WORKLET = `
 class Captura extends AudioWorkletProcessor {
@@ -71,20 +71,27 @@ btn.onclick = async () => {
 
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
-    if (m.type === 'error')  { estado.textContent = 'Error: ' + m.detalle; parar(); return; }
-    if (m.type === 'listo')  { estado.textContent = `Oyendo con ${m.stt} a ${m.sample_rate} Hz.`; arrancarAudio(m.sample_rate); return; }
+    if (m.type === 'error')    { estado.textContent = 'Error: ' + m.detalle; parar(); return; }
+    if (m.type === 'inactiva') { estado.textContent = 'Conexión ' + m.detalle + '.'; parar(); return; }
+    if (m.type === 'listo')    { estado.textContent = `Oyendo con ${m.stt}, modo ${m.modo}, a ${m.sample_rate} Hz.`; arrancarAudio(m.sample_rate); return; }
     if (m.type !== 'turno') return;
 
     if (m.cerrado) {
+      // Lo que interesa medir no es cuánto llevas conectado sino cuánto tardó
+      // en cerrar el turno desde que dejaste de hablar. Eso es lo que se siente
+      // como que el agente te interrumpe o te hace esperar.
+      const cierre = tParcial ? ((Date.now() - tParcial) / 1000).toFixed(2) + 's' : '—';
       vivo.textContent = '…';
+      tParcial = 0;
       const d = document.createElement('div');
       d.className = 'turno';
       const idioma = m.idioma ? ` · ${m.idioma} ${(m.confianza_idioma ?? 0).toFixed(2)}` : '';
-      d.innerHTML = `<div></div><div class="meta">turno ${m.orden} · ${((Date.now()-t0)/1000).toFixed(1)}s${idioma}</div>`;
+      d.innerHTML = `<div></div><div class="meta">turno ${m.orden} · cierre +${cierre} · t+${((Date.now()-t0)/1000).toFixed(1)}s${idioma}</div>`;
       d.firstChild.textContent = m.texto;
       turnos.prepend(d);
     } else {
       vivo.textContent = m.texto;
+      tParcial = Date.now();
     }
   };
   ws.onclose = () => { estado.textContent = 'Conexión cerrada.'; parar(); };

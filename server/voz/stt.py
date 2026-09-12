@@ -95,6 +95,7 @@ class Reconocedor:
             "encoding": "pcm_s16le",
             "speech_model": settings.stt_modelo,
             "format_turns": "true",
+            "mode": settings.stt_modo,
         }
         if settings.stt_idiomas:
             p["language_codes"] = settings.stt_idiomas

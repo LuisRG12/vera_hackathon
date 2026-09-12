@@ -56,8 +56,16 @@ async def llamada(ws: WebSocket):
     await ws.send_json({
         "type": "listo",
         "stt": stt.nombre,
+        "modo": settings.stt_modo,
         "sample_rate": settings.stt_sample_rate,
     })
+
+    # AssemblyAI factura por tiempo de conexión abierta, no por audio enviado:
+    # un socket olvidado cuesta lo mismo que una conversación. Este reloj lo
+    # cierra si nadie dice nada. Cuando exista el diálogo habrá que revisarlo,
+    # porque entonces el silencio del paciente mientras habla el agente es parte
+    # normal de la llamada.
+    ultimo = asyncio.get_running_loop().time()
 
     async def del_navegador_a_assemblyai():
         # Colgar es el final normal de una llamada. Se atrapa aquí y no fuera
@@ -75,6 +83,8 @@ async def llamada(ws: WebSocket):
         async for t in stt.eventos():
             if t.vacio:
                 continue
+            nonlocal ultimo
+            ultimo = asyncio.get_running_loop().time()
             await ws.send_json({
                 "type": "turno",
                 "texto": t.texto,
@@ -88,16 +98,28 @@ async def llamada(ws: WebSocket):
         if stt.error:
             await ws.send_json({"type": "error", "detalle": stt.error})
 
+    async def vigilar_inactividad():
+        while True:
+            await asyncio.sleep(2)
+            quieto = asyncio.get_running_loop().time() - ultimo
+            if quieto >= settings.stt_inactividad_s:
+                await ws.send_json({
+                    "type": "inactiva",
+                    "detalle": f"cerrada tras {int(quieto)}s sin voz, para no gastar crédito",
+                })
+                return
+
     subida = asyncio.create_task(del_navegador_a_assemblyai())
     bajada = asyncio.create_task(de_assemblyai_al_navegador())
+    reloj = asyncio.create_task(vigilar_inactividad())
     try:
         # La primera que termine manda: si el navegador cuelga no tiene sentido
         # seguir esperando turnos, y si AssemblyAI cierra no hay a quién mandarle
         # el audio.
-        await asyncio.wait({subida, bajada}, return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.wait({subida, bajada, reloj}, return_when=asyncio.FIRST_COMPLETED)
     except WebSocketDisconnect:
         pass
     finally:
-        for t in (subida, bajada):
+        for t in (subida, bajada, reloj):
             t.cancel()
         await stt.cerrar()
