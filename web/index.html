@@ -1,0 +1,113 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Vera — etapa 1: el oído</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.6 system-ui, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1.2rem; }
+  h1 { font-size: 1.3rem; margin-bottom: .2rem; }
+  .sub { color: #6b7280; margin-top: 0; }
+  button { font: inherit; padding: .6rem 1.2rem; border-radius: .5rem; border: 1px solid #6b7280;
+           background: transparent; color: inherit; cursor: pointer; }
+  button[disabled] { opacity: .45; cursor: default; }
+  #estado { margin: 1.2rem 0; padding: .6rem .9rem; border-radius: .5rem;
+            background: rgba(127,127,127,.12); font-size: .9rem; }
+  #vivo { min-height: 3.2rem; padding: .8rem 1rem; margin: 1rem 0; border-radius: .5rem;
+          border: 1px dashed #9ca3af; color: #6b7280; font-style: italic; }
+  .turno { padding: .7rem 1rem; margin: .45rem 0; border-radius: .5rem;
+           background: rgba(127,127,127,.12); }
+  .meta { font-size: .75rem; color: #6b7280; margin-top: .25rem; font-style: normal; }
+</style>
+
+<h1>Vera — etapa 1: el oído</h1>
+<p class="sub">Comprueba que AssemblyAI transcribe español colombiano y que los turnos cierran donde deben. Todavía no hay diálogo ni voz.</p>
+
+<button id="btn">Empezar a hablar</button>
+<div id="estado">Sin conectar.</div>
+<div id="vivo">…</div>
+<div id="turnos"></div>
+
+<script>
+const btn = document.getElementById('btn');
+const estado = document.getElementById('estado');
+const vivo = document.getElementById('vivo');
+const turnos = document.getElementById('turnos');
+let ws, ctx, stream, t0;
+
+const WORKLET = `
+class Captura extends AudioWorkletProcessor {
+  process(inputs) {
+    const ch = inputs[0][0];
+    if (!ch) return true;
+    // El servidor y AssemblyAI esperan PCM 16 bits con signo.
+    const pcm = new Int16Array(ch.length);
+    for (let i = 0; i < ch.length; i++) {
+      const s = Math.max(-1, Math.min(1, ch[i]));
+      pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    this.port.postMessage(pcm.buffer, [pcm.buffer]);
+    return true;
+  }
+}
+registerProcessor('captura', Captura);`;
+
+btn.onclick = async () => {
+  if (ws) return parar();
+  btn.textContent = 'Parar';
+  estado.textContent = 'Pidiendo micrófono…';
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+    });
+  } catch (e) {
+    estado.textContent = 'No se pudo abrir el micrófono: ' + e.message;
+    btn.textContent = 'Empezar a hablar';
+    return;
+  }
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/llamada`);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'error')  { estado.textContent = 'Error: ' + m.detalle; parar(); return; }
+    if (m.type === 'listo')  { estado.textContent = `Oyendo con ${m.stt} a ${m.sample_rate} Hz.`; arrancarAudio(m.sample_rate); return; }
+    if (m.type !== 'turno') return;
+
+    if (m.cerrado) {
+      vivo.textContent = '…';
+      const d = document.createElement('div');
+      d.className = 'turno';
+      const idioma = m.idioma ? ` · ${m.idioma} ${(m.confianza_idioma ?? 0).toFixed(2)}` : '';
+      d.innerHTML = `<div></div><div class="meta">turno ${m.orden} · ${((Date.now()-t0)/1000).toFixed(1)}s${idioma}</div>`;
+      d.firstChild.textContent = m.texto;
+      turnos.prepend(d);
+    } else {
+      vivo.textContent = m.texto;
+    }
+  };
+  ws.onclose = () => { estado.textContent = 'Conexión cerrada.'; parar(); };
+};
+
+async function arrancarAudio(rate) {
+  t0 = Date.now();
+  // Pedir el sample rate directamente evita remuestrear a mano: el navegador lo
+  // hace bien y es una fuente menos de ruido en una prueba de reconocimiento.
+  ctx = new AudioContext({ sampleRate: rate });
+  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], {type:'text/javascript'})));
+  const nodo = new AudioWorkletNode(ctx, 'captura');
+  nodo.port.onmessage = e => { if (ws?.readyState === 1) ws.send(e.data); };
+  ctx.createMediaStreamSource(stream).connect(nodo);
+  nodo.connect(ctx.destination);
+}
+
+function parar() {
+  btn.textContent = 'Empezar a hablar';
+  vivo.textContent = '…';
+  if (ws) { const w = ws; ws = null; w.close(); }
+  stream?.getTracks().forEach(t => t.stop());
+  ctx?.close();
+  ctx = stream = null;
+}
+</script>

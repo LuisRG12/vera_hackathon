@@ -1,0 +1,99 @@
+"""Servidor de la llamada.
+
+Etapa 1: el oído. El navegador captura el micrófono, manda PCM por WebSocket, y
+este servidor lo reenvía a AssemblyAI y devuelve lo que va oyendo. Todavía no hay
+diálogo ni voz — solo se comprueba que el reconocimiento en español funciona y
+que los turnos cierran donde deben.
+
+**La clave de AssemblyAI no pasa por el navegador.** El audio da este rodeo justo
+para eso: el cliente habla con nosotros y nosotros con AssemblyAI.
+"""
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, JSONResponse
+
+from server.config import settings
+from server.voz.keyterms import CONTEXTO_CLINICO, KEYTERMS
+from server.voz.stt import ErrorSTT, crear_stt
+
+WEB = Path(__file__).resolve().parent.parent / "web"
+
+app = FastAPI(title="Vera")
+
+
+@app.get("/")
+async def inicio():
+    return FileResponse(WEB / "index.html")
+
+
+@app.get("/salud")
+async def salud():
+    """Para saber de un vistazo si el despliegue quedó bien configurado."""
+    return JSONResponse({
+        "stt": settings.stt_modelo,
+        "configurado": settings.stt_configurado,
+        "idiomas": settings.stt_idiomas,
+        "keyterms": len(KEYTERMS),
+    })
+
+
+@app.websocket("/ws/llamada")
+async def llamada(ws: WebSocket):
+    await ws.accept()
+    stt = crear_stt(keyterms=KEYTERMS, contexto=CONTEXTO_CLINICO)
+
+    try:
+        await stt.abrir()
+    except ErrorSTT as e:
+        await ws.send_json({"type": "error", "detalle": str(e)})
+        await ws.close()
+        return
+
+    await ws.send_json({
+        "type": "listo",
+        "stt": stt.nombre,
+        "sample_rate": settings.stt_sample_rate,
+    })
+
+    async def del_navegador_a_assemblyai():
+        # Colgar es el final normal de una llamada. Se atrapa aquí y no fuera
+        # porque la excepción vive dentro de la tarea: si se deja escapar,
+        # asyncio la guarda sin que nadie la recoja y ensucia el log con un
+        # error que no lo es.
+        try:
+            while True:
+                pcm = await ws.receive_bytes()
+                await stt.enviar(pcm)
+        except (WebSocketDisconnect, ErrorSTT, RuntimeError):
+            return
+
+    async def de_assemblyai_al_navegador():
+        async for t in stt.eventos():
+            if t.vacio:
+                continue
+            await ws.send_json({
+                "type": "turno",
+                "texto": t.texto,
+                "cerrado": t.cerrado,
+                "orden": t.orden,
+                "idioma": t.idioma,
+                "confianza_idioma": t.confianza_idioma,
+            })
+
+    subida = asyncio.create_task(del_navegador_a_assemblyai())
+    bajada = asyncio.create_task(de_assemblyai_al_navegador())
+    try:
+        # La primera que termine manda: si el navegador cuelga no tiene sentido
+        # seguir esperando turnos, y si AssemblyAI cierra no hay a quién mandarle
+        # el audio.
+        await asyncio.wait({subida, bajada}, return_when=asyncio.FIRST_COMPLETED)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        for t in (subida, bajada):
+            t.cancel()
+        await stt.cerrar()
