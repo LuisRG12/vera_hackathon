@@ -16,3 +16,6 @@ __pycache__/
 
 # Voces de Piper: artefactos de terceros con licencia propia, se descargan.
 voces/
+
+# Notas de trabajo, no van al repo
+notas/
