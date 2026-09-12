@@ -35,6 +35,9 @@ proyecto**: si el español en streaming no se comporta, nada de lo demás import
 
 Sustituir el modelo local por Claude vía el LLM Gateway.
 
+> Bloqueada hasta habilitar pago por uso en la cuenta: el gateway no entra en el
+> crédito gratuito. La etapa 3 no depende de esto y se adelanta.
+
 - [ ] Cliente del gateway, compatible con el SDK de OpenAI
 - [ ] Structured outputs en lugar de la decodificación con gramática
 - [ ] Streaming de la respuesta, para que la voz arranque antes del final

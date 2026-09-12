@@ -55,9 +55,18 @@ nunca ve la clave: se autentica con un token temporal.
 de OpenAI, con tool calling, structured outputs, streaming y prompt caching.
 
 Se elige el gateway sobre la API de Anthropic directa porque enruta y factura
-**Claude a través de AssemblyAI**: una sola credencial para todo el sistema, los
-créditos del reto aplican a ambas capas, y quien reproduzca el proyecto necesita
-una clave, no dos.
+**Claude a través de AssemblyAI**: una sola credencial para todo el sistema y
+quien reproduzca el proyecto necesita una clave, no dos.
+
+**El gateway no está cubierto por el crédito gratuito.** Los US$50 de bienvenida
+cubren transcripción —pregrabada y en vivo—, Voice Agent API, Speech
+Understanding y Guardrails, pero no el gateway, que exige cuenta con medio de
+pago y se factura por tokens desde la primera petición. En cuenta gratuita solo
+responde un modelo pequeño, sin salida estructurada ni tool calling, que no
+sirve para esta capa.
+
+El reparto de costo queda conveniente: el audio, que es lo caro por hora, sigue
+saliendo del crédito gratuito; solo los tokens se facturan.
 
 La decodificación con gramática que se usaba con el modelo local se reemplaza
 por **structured outputs**. El formato deja de ser una instrucción desobedecible

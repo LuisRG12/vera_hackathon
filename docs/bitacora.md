@@ -46,3 +46,11 @@ después de dejar de hablar, y aguanta entera una frase con muletilla y
 autocorrección a la mitad — «me operaron de apendicitis, cierto, y de la herida
 me está saliendo un, saliendo un líquido amarillo»—. Los términos clínicos
 cargados se reconocen.
+
+**Acceso al modelo de lenguaje.** El LLM Gateway de AssemblyAI no entra en el
+crédito gratuito de bienvenida, que cubre transcripción y Voice Agent API pero
+no tokens. En cuenta gratuita solo responde un modelo pequeño que no soporta ni
+salida estructurada ni tool calling, y pedir el formato por prompt es justo lo
+que este diseño evita. Se habilita el pago por uso en la misma cuenta en vez de
+abrir otra con el proveedor del modelo: cuesta lo mismo, deja el sistema con una
+sola credencial y el audio sigue saliendo del crédito gratuito.
