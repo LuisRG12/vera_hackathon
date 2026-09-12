@@ -1,0 +1,58 @@
+# Vera — a clinical voice agent for post-surgical follow-up
+
+Vera calls a recently discharged patient, talks with them by voice in Colombian
+Spanish, answers **only** from that patient's clinical documents — citing which
+document backs each answer — and **escalates to a human** the moment a red-flag
+symptom appears.
+
+Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai/ai-hackathons/assemblyai-voice-agent-hackathon)
+(September 2026).
+
+> **This is not a medical device and does not replace clinical care.** Vera is a
+> follow-up assistant. It never diagnoses, never prescribes, and escalates to a
+> human clinician on any red flag. Every clinical statement it makes is a
+> citation from a document, not a generation.
+
+## Provenance
+
+This project builds on **Vera**, my own MIT-licensed project from August 2026
+([LuisRG12/vera_voice_agent](https://github.com/LuisRG12/vera_voice_agent)),
+where the dialogue state machine, the hybrid retrieval layer and the
+deterministic safety engine were written.
+
+Built **during the hackathon window** (September 2026):
+
+- Speech recognition moved from a local Vosk model to **AssemblyAI
+  Universal-Streaming** (multilingual), including clinical keyterm prompting.
+- Language model moved from a local Llama 3.2 to **Claude via the AssemblyAI LLM
+  Gateway**, with structured outputs replacing grammar-constrained decoding.
+- A deployed, publicly reachable demo.
+- A knowledge base rebuilt from **freely redistributable clinical guidelines**.
+
+Nothing in this repository redistributes third-party documents.
+
+## Why the Voice Agent API is not used
+
+AssemblyAI ships a Voice Agent API that bundles speech-to-text, an LLM, text-to-
+speech, turn detection and tool calling behind one WebSocket. It is the more
+impressive product and it supports Spanish. Vera does not use it, for one
+reason.
+
+In that API, tools are **LLM-driven, not forced** — there is no hook that fires
+on every user utterance — and session transcripts are **not available while the
+session is running**. So a safety check can only run if the language model
+decides to invoke it.
+
+For a clinical agent, that inverts the guarantee that matters: the model becomes
+the gatekeeper of its own supervision. If a patient says *"I can't breathe"*,
+escalation must not depend on a model choosing to call a tool.
+
+Vera therefore drives **Universal-Streaming** directly, so the deterministic
+safety engine reads every word the patient says, before and independently of the
+language model — and keeps working if the model fails entirely.
+
+See [docs/arquitectura.md](docs/arquitectura.md).
+
+## Status
+
+Under construction. See [docs/etapas.md](docs/etapas.md) for the staged build.

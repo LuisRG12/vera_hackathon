@@ -1,0 +1,18 @@
+# Credenciales. El .env.example sí se versiona; el .env real, nunca.
+.env
+
+# Entorno y caché de Python
+.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
+
+# Bases de datos locales de ejecución
+*.db
+*.sqlite3
+
+# Audio generado en pruebas
+*.wav
+
+# Voces de Piper: artefactos de terceros con licencia propia, se descargan.
+voces/
