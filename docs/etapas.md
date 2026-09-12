@@ -20,12 +20,16 @@ Etapas definidas y arquitectura investigada. Sin código todavía.
 Sustituir el reconocimiento local por AssemblyAI. **Es la compuerta del
 proyecto**: si el español en streaming no se comporta, nada de lo demás importa.
 
-- [ ] Conexión WebSocket a Universal-Streaming, PCM 16 kHz mono
-- [ ] Token temporal para el navegador (la clave nunca sale del servidor)
-- [ ] Parciales y `end_of_turn` llegando y visibles en consola
-- [ ] Modelo multilingüe activo, midiendo español colombiano real
-- [ ] Keyterms clínicos cargados
-- [ ] **Prueba a mano:** hablarle y ver la transcripción correcta en vivo
+- [x] Conexión WebSocket a Universal-Streaming, PCM 16 kHz mono
+- [x] La clave no sale del servidor: el audio pasa por aquí, así que no hace
+      falta token temporal. Haría falta si el navegador conectara directo.
+- [x] Parciales y `end_of_turn` llegando a la pantalla
+- [x] Modelo activo y medido con voz real en español colombiano
+- [x] Keyterms clínicos cargados y reconocidos en prueba
+- [x] Fin de turno en `max_accuracy`: aguanta las pausas de un paciente sin
+      partirle la frase
+- [x] Cierre por inactividad, porque se factura por conexión abierta
+- [ ] **Prueba a mano:** medir la latencia de cierre de turno
 
 ## Etapa 2 — La cabeza
 

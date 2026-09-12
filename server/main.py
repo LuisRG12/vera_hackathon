@@ -27,7 +27,10 @@ app = FastAPI(title="Vera")
 
 @app.get("/")
 async def inicio():
-    return FileResponse(WEB / "index.html")
+    # Sin esto el navegador se queda con la copia vieja y uno prueba un cambio
+    # que no está corriendo. Es una página de kilobytes: no hay nada que ahorrar
+    # cacheándola, y sí mucho que perder.
+    return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/salud")
