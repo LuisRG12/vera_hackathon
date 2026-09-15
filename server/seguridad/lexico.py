@@ -326,6 +326,34 @@ LEXICON: dict[str, dict] = {
                 "sin declarar emergencia. **Pendiente de confirmar con el equipo "
                 "clínico**, igual que `compromiso_vascular`.",
     },
+    "dolor_brazo_izquierdo": {
+        "severidad": "high",
+        "terminos": [
+            "me duele el brazo izquierdo", "dolor en el brazo izquierdo",
+        ],
+        "patrones": [
+            # Algo que se corre hacia el brazo izquierdo, aunque la frase no diga
+            # qué. Se exige la preposición de destino —al, hacia, hasta— porque
+            # «se me pasa» también es «se me quita», y «se me pasa con la
+            # pastilla» no va hacia ninguna parte.
+            r"se (me |le )?(corre|pasa|extiende|riega|sube|baja)[^.]{0,15}\b(al|a|hacia|hasta|por)\b"
+            r"[^.]{0,25}(brazo izquierdo|izquierdo,? el brazo)",
+            r"(dolor|duele|molest\w*)[^.]{0,40}(brazo izquierdo|izquierdo,? el brazo)",
+            r"brazo izquierdo[^.]{0,20}(duele|dolor|molest)",
+        ],
+        "nota": "Voz real, 13 de septiembre: el paciente dijo «me duele el pecho, "
+                "¿cierto? y se me pasa al brazo izquierdo». AssemblyAI escribió "
+                "«brazo» por «pecho» y el «¿cierto?» partió la frase en dos turnos: "
+                "«Te cuento que me duele el brazo, ¿cierto?» y «Y se me pasa como, "
+                "se me pasa como al lado izquierdo el brazo.». El patrón de "
+                "irradiación de `dolor_toracico` no alcanzó a verlo en ninguno de "
+                "los dos, y la emergencia más clara de la llamada salió sin alerta. "
+                "Se marca `high`, no `critical`: sin nombrar el pecho es ambiguo "
+                "—el brazo del suero también duele—, y ante ambigüedad se baja de "
+                "nivel sin omitir. Con «pecho» dicho y bien transcrito sigue "
+                "saltando `dolor_toracico` como emergencia. **Pendiente de "
+                "confirmar con el equipo clínico.**",
+    },
     "alteracion_mental": {
         "severidad": "high",
         "terminos": [

@@ -160,6 +160,18 @@ POSITIVOS = [
     ("Y te digo que me sale pus de la herida.", "infeccion", "high"),
     ("He tenido infección.", "infeccion", "high"),
     ("También te cuento que tengo 39 de temperatura.", "fiebre", "high"),
+    # Dijo «me duele el pecho, ¿cierto? y se me pasa al brazo izquierdo»; llegó
+    # «brazo» por «pecho» y partido en dos turnos. Ninguno de los dos alertaba.
+    ("Y se me pasa como, se me pasa como al lado izquierdo el brazo.",
+     "dolor_brazo_izquierdo", "high"),
+    ("me duele el brazo izquierdo", "dolor_brazo_izquierdo", "high"),
+    ("el dolor se me corre hacia el brazo izquierdo", "dolor_toracico", "critical"),
+    # La segunda llamada, con los arreglos ya puestos.
+    ("Hola, Vera. Te cuento que la herida me está botando como materia.",
+     "infeccion", "high"),
+    ("Cuando iba para el baño me dio un yeyo.", "perdida_conciencia", "critical"),
+    ("Y pues en ese momento tengo dolor en el pecho, no sé si eso puede ser grave.",
+     "dolor_toracico", "critical"),
 ]
 
 # Frases que NO deben disparar nada. Un agente que escala con todo es ruido.
@@ -177,6 +189,9 @@ NEGATIVOS = [
     ("Pero ahora pues ya no tengo fiebre ni escalofríos.", "negación, voz real"),
     ("No tengo como fiebre.", "muletilla entre la negación y el síntoma"),
     ("Ya no tengo pues fiebre.", "muletilla entre la negación y el síntoma"),
+    # «Se me pasa» también es «se me quita»: sin destino no es irradiación.
+    ("el dolor se me pasa con la pastilla", "«se me pasa» de mejoría"),
+    ("tengo el brazo izquierdo bien", "el brazo, sin dolor"),
     # El imperfecto es la forma más común de negar hablando, y no se reconocía:
     # «no tenía fiebre» entraba como fiebre REPORTADA y la llamada escalaba. Se
     # vio por micrófono — el paciente dijo que no y Vera le contestó que «ha
