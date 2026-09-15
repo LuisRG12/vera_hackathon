@@ -10,7 +10,7 @@ navegador ──PCM 16k── servidor ──wss──> AssemblyAI Universal-Str
                           │                        │
                           │<────── parciales + end_of_turn
                           │
-                          ├─> motor de seguridad determinista  (SIEMPRE, sobre el texto crudo)
+                          ├─> motor de seguridad determinista  (SIEMPRE, parciales incluidos)
                           │
                           ├─> recuperación híbrida (BM25 + embeddings) sobre guías clínicas
                           │
@@ -47,7 +47,8 @@ funcionando si el modelo falla entero.
 
 Detalles de conexión: `wss://streaming.assemblyai.com/v3/ws`, PCM 16 bits mono,
 API key en el header `authorization` **sin** prefijo `Bearer`. El navegador
-nunca ve la clave: se autentica con un token temporal.
+nunca ve la clave: el audio pasa por nuestro servidor, que es quien habla con
+AssemblyAI. Un token temporal solo haría falta si el navegador conectara directo.
 
 ### 2. LLM: Claude por el LLM Gateway de AssemblyAI
 
@@ -74,18 +75,37 @@ sin depender de un runtime local.
 
 ### 3. La capa determinista se conserva entera
 
-El léxico clínico colombiano y el motor de reglas no se tocan. Traducen cómo
-habla un paciente —«botando materia», «me dio un yeyo», «me fatigo al caminar»—
-a los conceptos que nombran los documentos, y clasifican severidad sin invocar
-ningún modelo.
+El léxico clínico colombiano y el motor de reglas se traen del proyecto
+original. Traducen cómo habla un paciente —«botando materia», «me dio un yeyo»,
+«me fatigo al caminar»— a los conceptos que nombran los documentos, y clasifican
+severidad sin invocar ningún modelo.
 
-Lo único que se rehace es el bloque de **confusiones del reconocedor**: eran
-defectos de Vosk. AssemblyAI tendrá otros, y se re-miden contra transcripciones
-reales en vez de heredarlos a ciegas.
+Lo único que se rehace es lo que dependía del reconocedor. El bloque de
+**confusiones** eran defectos de Vosk; se re-midió contra AssemblyAI
+(`evals/confusiones.py`) y la única que había no apareció nunca, así que se
+retiró. Lo que sí apareció es otra clase de defecto: AssemblyAI oye bien pero
+**formatea** —cifras en dígitos, marcas con guion, puntuación—, y dos alarmas se
+perdían por cómo quedaban escritas, no por cómo se oyeron. Eso se absorbe en los
+patrones, igual que ya se absorbían las tildes.
 
-Su reemplazo moderno, donde aplica, son los **keyterms** de AssemblyAI: sesgar
-el reconocedor con vocabulario clínico *antes* de transcribir es mejor que
-reparar el texto después.
+El motor lee lo que entrega el reconocedor **tal cual**, sin que ningún modelo
+lo corrija, y lee también los parciales: la alerta sale mientras el paciente
+todavía está hablando. Con voz real eso además salvó una alerta: AssemblyAI
+reescribe el turno al cerrarlo, y en una prueba cambió «un yeyo», que había oído
+bien, por «un jejum». La alerta ya había salido del parcial y no se retira.
+
+Los **keyterms** de AssemblyAI son el reemplazo moderno de las confusiones donde
+aplican: sesgar el reconocedor *antes* de transcribir es mejor que reparar el
+texto después. Pero se añaden con evidencia, no por si acaso: «yeyo» entró
+porque con voz real llegó dos veces como «jejum», y desde entonces llega bien;
+«pus» no, porque su única confusión no se repitió.
+
+Y la capa determinista tiene un límite que conviene decir en voz alta: unas
+reglas no entienden todo lo que un paciente dice con muletillas, repeticiones y
+frases partidas. Con voz real, un dolor de pecho que se corría al brazo quedó sin
+alerta porque el reconocedor escribió «brazo» por «pecho» y la frase llegó en dos
+turnos. Se cubrió ese caso, pero la respuesta de fondo es la de siempre: dos
+capas, y el escalamiento es el máximo de las dos.
 
 ### 4. Turn detection: el semántico de AssemblyAI, con respaldo propio
 

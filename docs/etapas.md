@@ -35,22 +35,28 @@ proyecto**: si el español en streaming no se comporta, nada de lo demás import
 
 Sustituir el modelo local por Claude vía el LLM Gateway.
 
-> Bloqueada hasta habilitar pago por uso en la cuenta: el gateway no entra en el
-> crédito gratuito. La etapa 3 no depende de esto y se adelanta.
+> Estuvo bloqueada hasta habilitar pago por uso en la cuenta, porque el gateway
+> no entra en el crédito gratuito; mientras tanto se adelantó la etapa 3.
 
 - [ ] Cliente del gateway, compatible con el SDK de OpenAI
 - [ ] Structured outputs en lugar de la decodificación con gramática
 - [ ] Streaming de la respuesta, para que la voz arranque antes del final
 - [ ] **Prueba a mano:** un turno completo de conversación, por texto
 
-## Etapa 3 — La red de seguridad
+## Etapa 3 — La red de seguridad ✅
 
 Reconectar la capa determinista sobre el texto de AssemblyAI.
 
-- [ ] Léxico y motor de reglas corriendo sobre el transcript crudo
-- [ ] Bloque de confusiones re-medido contra AssemblyAI, no heredado de Vosk
-- [ ] Escalamiento disparando antes de que el modelo opine
-- [ ] **Prueba a mano:** decir un signo de alarma y ver la escalada
+- [x] Léxico y motor de reglas corriendo sobre lo que entrega el reconocedor,
+      parciales incluidos
+- [x] Bloque de confusiones re-medido contra AssemblyAI, no heredado de Vosk
+      (`evals/confusiones.py`: 128/128 frases conservan su decisión)
+- [x] Escalamiento disparando antes de que el modelo opine: la alerta sale en
+      el parcial, una mediana de 0,85 s antes de que cierre el turno
+- [x] **Prueba a mano:** con voz real saltan emergencia, infección y fiebre, y
+      la negación no alerta. Encontró tres fallos que la voz sintética no podía
+      mostrar —muletillas, «yeyo» y el dolor de pecho oído como «brazo»—, ya
+      cubiertos
 
 ## Etapa 4 — El conocimiento
 

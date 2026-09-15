@@ -54,3 +54,54 @@ salida estructurada ni tool calling, y pedir el formato por prompt es justo lo
 que este diseño evita. Se habilita el pago por uso en la misma cuenta en vez de
 abrir otra con el proveedor del modelo: cuesta lo mismo, deja el sistema con una
 sola credencial y el audio sigue saliendo del crédito gratuito.
+
+---
+
+## 13 de septiembre — la red de seguridad
+
+**Lo heredado.** Se trae del proyecto original la capa que reconoce los signos
+de alarma: el vocabulario de cómo habla un paciente colombiano y el motor que lo
+lee. Va en un commit aparte, para que se distinga lo heredado de lo hecho durante
+el reto, y responde igual que allá.
+
+**Lo que cambia con AssemblyAI.** Esa capa se había afinado escuchando a Vosk,
+que entregaba el texto en minúsculas y sin puntuación. AssemblyAI lo entrega
+formateado, así que antes de confiar en ella había que ver qué le pasaba a cada
+alarma. Se probaron las frases del motor con una voz sintética. La confusión que
+venía de Vosk —oír «inspección» cuando el paciente decía «infección»— no apareció
+nunca, y se retiró. Lo que sí apareció es que AssemblyAI escribe las cifras en
+números y une algunas palabras con guion, y por eso se perdían una fiebre de 39
+y una orina oscura. Se ajustó el vocabulario para leer las dos formas.
+
+**La alerta, mientras el paciente habla.** El motor lee lo que el reconocedor va
+oyendo, sin esperar a que termine la frase. En las pruebas la alerta salió casi
+un segundo antes de que el turno cerrara. Ante una emergencia, lo que Vera
+responde lo escribe el código, no el modelo.
+
+**Con voz real.** Hablando como habla uno aparecieron dos cosas que la voz
+sintética no podía mostrar. Las muletillas: «la herida está botando como
+materia» no alertaba, porque ese «como» partía la frase que el motor conocía. Y
+«me dio un yeyo», que AssemblyAI escribió dos veces como «jejum». En una de esas
+había oído bien mientras el paciente hablaba y lo cambió al cerrar el turno; la
+alerta ya había salido, y se quedó. Se le enseñó la palabra al reconocedor antes
+de transcribir y en la repetición llegó bien las dos veces. La fiebre en
+números, arreglada esa misma mañana, funcionó a la primera.
+
+Y hubo una que dolió. El paciente dijo que le dolía el pecho y que el dolor se le
+pasaba al brazo izquierdo, que es la emergencia más clara que puede contar. El
+reconocedor escribió «brazo» donde había dicho «pecho», y la frase quedó partida
+en dos por un «¿cierto?». La regla que debía atrapar el dolor que se corre al
+brazo tampoco la vio, porque estaba hecha para frases limpias y no para «se me
+pasa como, se me pasa como al lado izquierdo». No hubo alerta. Al repetirlo,
+«pecho» llegó bien y saltó la emergencia cinco segundos antes de que terminara de
+hablar. Pero no se puede confiar en que el reconocedor no se equivoque justo ahí,
+así que ahora el dolor que se corre al brazo izquierdo escala al equipo aunque no
+se nombre el pecho.
+
+Queda claro también el límite de esta capa: unas reglas no entienden todo lo que
+un paciente puede decir con muletillas y frases a medias. Por eso la arquitectura
+tiene dos capas, y la segunda —el modelo leyendo la conversación entera— es la
+que llega con la etapa 2.
+
+**El modelo.** Con el pago por uso habilitado, el gateway ya responde con Claude
+y la etapa 2 queda desbloqueada.
