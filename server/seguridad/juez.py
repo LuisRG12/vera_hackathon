@@ -37,7 +37,7 @@ Ante duda, SUBE el nivel; nunca lo bajes.
 
 Si el analizador de texto no detectó ninguna señal, solo asigna high o critical cuando el paciente describa un síntoma concreto que el analizador pudo haberse perdido. Mencionar la cirugía, saludar o preguntar algo no es un síntoma.
 
-Si aparece un TURNO ANTERIOR, es solo para entender la frase actual: el reconocedor de voz a veces parte en dos lo que el paciente dijo de corrido. Valora lo que el paciente reporta ahora, leído con ese contexto."""
+Si aparece un TURNO ANTERIOR, úsalo solo para completar una frase que el reconocedor de voz partió en dos. No vuelvas a valorar lo que el paciente ya dijo en ese turno: eso ya se valoró. Valora lo que reporta ahora."""
 
 
 async def assess_risk(llm: StructuredLLM, user_text: str,
