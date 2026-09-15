@@ -31,7 +31,7 @@ proyecto**: si el español en streaming no se comporta, nada de lo demás import
 - [x] Cierre por inactividad, porque se factura por conexión abierta
 - [x] **Prueba a mano:** cierre de turno en 0,6–0,9 s con voz real
 
-## Etapa 2 — La cabeza
+## Etapa 2 — La cabeza ✅
 
 Sustituir el modelo local por Claude vía el LLM Gateway.
 
@@ -42,8 +42,11 @@ Sustituir el modelo local por Claude vía el LLM Gateway.
 - [x] Structured outputs en lugar de la decodificación con gramática
 - [x] Juez de riesgo como segunda capa, combinado con las reglas
       (`evals/juez.py`: 17/17 escalados, 0 alarmas de más en 13 benignas)
-- [ ] Streaming de la respuesta, para que la voz arranque antes del final
-- [ ] **Prueba a mano:** un turno completo de conversación, por texto
+- [x] Streaming de la respuesta, para que la voz arranque antes del final: la
+      primera frase sale en ~1,5 s y el juez corre en paralelo
+- [x] **Prueba a mano:** una conversación por texto que recorre todas las rutas
+      —normal, alarma de las reglas, alarma que solo ve el juez, emergencia del
+      código y un intento de manipulación—
 
 ## Etapa 3 — La red de seguridad ✅
 
