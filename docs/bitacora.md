@@ -105,3 +105,38 @@ que llega con la etapa 2.
 
 **El modelo.** Con el pago por uso habilitado, el gateway ya responde con Claude
 y la etapa 2 queda desbloqueada.
+
+---
+
+## 13 de septiembre — la cabeza
+
+**El modelo.** Con el gateway abierto se compararon los dos Claude que tenía
+sentido usar. Haiku contesta más rápido —su primera palabra llega en poco más de
+un segundo, contra algo más de dos de Sonnet— y es el único de los dos al que el
+gateway le acepta salida estructurada. Se queda Haiku.
+
+**Lo que el formato no garantiza.** La salida estructurada obliga al modelo a
+responder con la forma pedida, y no puede escribir fuera de ella. Pero se probó
+qué pasa cuando la forma y la verdad chocan: si el fragmento que responde la
+pregunta no está entre los que se le permite citar, cita otros que no tienen nada
+que ver. El formato queda perfecto y la cita es falsa. Las citas se van a
+verificar con código cuando llegue el conocimiento.
+
+**El juez.** Vuelve la segunda capa de seguridad: el modelo lee lo que dijo el
+paciente y dice qué tan grave es, y eso se combina con las reglas. Se trajo del
+proyecto original con su regla más importante —el modelo solo nunca manda a
+nadie a urgencias— y se midió contra los mismos casos de allá. El modelo pequeño
+que se usaba entonces acertaba nueve de diez; Haiku, los diez. Donde las reglas
+no ven nada —«siento como una presión aquí en el pecho», «se me está hinchando la
+cara desde que me tomé la pastilla»— el juez escaló los siete casos. Y las
+preguntas que el modelo anterior convertía en emergencia, como hacerse un
+tatuaje, ahora quedan en nada.
+
+**Frases partidas.** El juez ve también lo que el paciente dijo en el turno
+anterior, por el dolor de pecho que llegó partido en dos. Con eso lo clasificó
+como emergencia. El costo: a una pregunta inocente que sigue a un reporte de
+fiebre también le sube el riesgo. Queda anotado para cuando exista el diálogo.
+
+**Un límite de la cuenta.** El gateway deja hacer treinta peticiones por minuto.
+Una llamada usa dos por turno, así que alcanza; si se agotan, Vera sigue sin el
+modelo y la seguridad la deciden las reglas, que ya habían evaluado.

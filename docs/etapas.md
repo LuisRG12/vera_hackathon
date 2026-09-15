@@ -38,8 +38,10 @@ Sustituir el modelo local por Claude vía el LLM Gateway.
 > Estuvo bloqueada hasta habilitar pago por uso en la cuenta, porque el gateway
 > no entra en el crédito gratuito; mientras tanto se adelantó la etapa 3.
 
-- [ ] Cliente del gateway, compatible con el SDK de OpenAI
-- [ ] Structured outputs en lugar de la decodificación con gramática
+- [x] Cliente del gateway, por HTTP directo, con Claude Haiku 4.5
+- [x] Structured outputs en lugar de la decodificación con gramática
+- [x] Juez de riesgo como segunda capa, combinado con las reglas
+      (`evals/juez.py`: 17/17 escalados, 0 alarmas de más en 13 benignas)
 - [ ] Streaming de la respuesta, para que la voz arranque antes del final
 - [ ] **Prueba a mano:** un turno completo de conversación, por texto
 
