@@ -69,12 +69,9 @@ POSITIVOS = [
     ("se me puso roja la herida", "infeccion", "high"),
     ("la herida está caliente", "infeccion", "high"),
     ("creo que se me infectó", "infeccion", "high"),
-    # Lo que el RECONOCEDOR pone en boca del paciente. En la llamada 83 dijo
-    # «he tenido infección» tres veces seguidas y Vosk entregó «inspección» las
-    # tres; el juez lo leyó literal y el turno salió con riesgo `none`. Se
-    # declara en `lexico.confusiones`, no entre los términos del paciente.
-    ("he tenido inspección", "infeccion", "high"),
-    ("sí yo diría que inspección", "infeccion", "high"),
+    # Aquí estaban «he tenido inspección» y «sí yo diría que inspección»: lo que
+    # Vosk entregaba cuando el paciente decía «infección». Con AssemblyAI esa
+    # confusión no aparece (evals/confusiones.py) y se retiró del léxico.
     # La contraparte de la negación en imperfecto: una adversativa con
     # afirmación la cancela. La afirmación es elíptica —«sí tengo», sin repetir
     # el síntoma—, así que no basta con buscar otra ocurrencia del término.
@@ -138,14 +135,30 @@ POSITIVOS = [
     ("me desmaye esta manana", "perdida_conciencia", "critical"),
     ("tengo una infeccion en la herida", "infeccion", "high"),
     ("vision borrosa desde ayer", "preeclampsia", "high"),
+
+    # --- tal como las entrega AssemblyAI (evals/confusiones.py) ---
+    # Formatea: cifras en dígitos, mayúsculas, guiones, punto final. Las dos
+    # primeras perdían la alarma entera antes de ajustar el léxico.
+    ("Tengo 39 de temperatura.", "fiebre", "high"),
+    ("La orina como Coca-Cola.", "ictericia", "moderate"),
+    ("La temperatura me llegó a 40.", "fiebre", "high"),
+    ("El termómetro marcó 39,5.", "fiebre", "high"),
+    ("Tengo 38 y medio de temperatura.", "fiebre", "high"),
+    # «yeyo» llegó como «yello»: lo absorbe la tolerancia al yeísmo que ya
+    # traía el motor. Se fija aquí para que siga siendo cierto.
+    ("Me dio un yello en el baño.", "perdida_conciencia", "critical"),
 ]
 
 # Frases que NO deben disparar nada. Un agente que escala con todo es ruido.
 NEGATIVOS = [
-    # La contrapartida de la confusión del reconocedor: la negación tiene que
-    # seguir funcionando encima de ella. Si «inspección» disparara infección aun
-    # negada, la alerta de más dejaría de ser un costo asumido y sería ruido.
-    ("no he tenido ninguna inspección", "confusión del STT, pero negada"),
+    # Aquí estaba «no he tenido ninguna inspección», la contrapartida negada de
+    # la confusión de Vosk que se retiró del léxico.
+    #
+    # Las cifras en dígitos, que ahora disparan fiebre, no pueden disparar con
+    # cualquier número ni saltarse la negación.
+    ("La temperatura bien, tengo 40 años.", "la cifra es la edad"),
+    ("No tengo 39 de temperatura.", "cifra de fiebre, negada"),
+    ("La temperatura me bajó a 36.", "temperatura normal"),
     # El imperfecto es la forma más común de negar hablando, y no se reconocía:
     # «no tenía fiebre» entraba como fiebre REPORTADA y la llamada escalaba. Se
     # vio por micrófono — el paciente dijo que no y Vera le contestó que «ha

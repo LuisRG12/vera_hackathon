@@ -1,8 +1,9 @@
 """Capa A de seguridad: detección determinista de red-flags clínicos.
 
-**Procedencia.** Traído sin cambios de `server/agent/safety_rules.py` en
+**Procedencia.** Traído de `server/agent/safety_rules.py` en
 [vera_voice_agent](https://github.com/LuisRG12/vera_voice_agent) (agosto 2026,
-commit 1827f0e). Lo único que cambia es de dónde importa el léxico.
+commit 1827f0e). Lo que cambió durante el reto está en el historial de git y en
+docs/bitacora.md: la tolerancia al guion que pone el formateo de AssemblyAI.
 
 Este archivo es el **motor**; el vocabulario está en `lexico.py`. La separación
 existe porque cada llamada real descubre dos o tres formas nuevas de decir lo
@@ -71,6 +72,7 @@ def compilar_termino(termino: str) -> str:
       - `ll` ↔ `y` (yeísmo: desmayé/desmalle)
       - `b` ↔ `v` (indistinguibles al oído)
       - `s` y `r` finales de palabra opcionales (aspiración e infinitivos)
+      - espacio ↔ guion (el formateo de AssemblyAI: «Coca-Cola»)
 
     Se hace en el patrón, no normalizando el texto de entrada: así los índices
     de la coincidencia siguen siendo válidos para el análisis de la negación.
@@ -123,7 +125,12 @@ def compilar_termino(termino: str) -> str:
         elif ch == "*":
             partes.append(r"\w*")
         elif ch == " ":
-            partes.append(r"\s+")
+            # Espacio o guion. AssemblyAI formatea el texto y une con guion lo
+            # que reconoce como compuesto o marca: «la orina como coca cola»
+            # llegó como «Coca-Cola» y la ictericia se perdió (evals/confusiones.py).
+            # Es la misma clase de defecto que la tilde —cómo se escribe, no qué
+            # se dijo—, y se absorbe igual: en el patrón.
+            partes.append(r"[\s-]+")
         else:
             partes.append(re.escape(ch))
         i += 1

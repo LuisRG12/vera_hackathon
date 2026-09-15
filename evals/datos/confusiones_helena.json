@@ -1,0 +1,2685 @@
+{
+ "medido": "2026-09-13",
+ "voz": "Microsoft Helena Desktop (es-ES, sintética)",
+ "modelo": "universal-3-5-pro",
+ "modo": "max_accuracy",
+ "keyterms": 52,
+ "frases": [
+  {
+   "dicho": "tengo fiebre de 39 grados",
+   "origen": "alarmas_base",
+   "t_fin_audio": 3.191,
+   "mensajes": [
+    {
+     "t": 1.001,
+     "texto": "Tengo fiebre",
+     "cerrado": false
+    },
+    {
+     "t": 2.31,
+     "texto": "Tengo fiebre de 39 grados.",
+     "cerrado": false
+    },
+    {
+     "t": 3.314,
+     "texto": "Tengo fiebre de 39 grados.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no tengo fiebre, me siento bien",
+   "origen": "alarmas_base",
+   "t_fin_audio": 3.282,
+   "mensajes": [
+    {
+     "t": 0.45,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.877,
+     "texto": "No tengo fiebre.",
+     "cerrado": false
+    },
+    {
+     "t": 3.302,
+     "texto": "No tengo fiebre, me siento bien.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "de repente no puedo respirar bien",
+   "origen": "alarmas_base",
+   "t_fin_audio": 2.838,
+   "mensajes": [
+    {
+     "t": 0.342,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.763,
+     "texto": "De repente no puedo respirar.",
+     "cerrado": false
+    },
+    {
+     "t": 3.168,
+     "texto": "De repente no puedo respirar bien.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me duele mucho el pecho",
+   "origen": "alarmas_base",
+   "t_fin_audio": 2.316,
+   "mensajes": [
+    {
+     "t": 0.337,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.564,
+     "texto": "Me duele mucho el pecho.",
+     "cerrado": false
+    },
+    {
+     "t": 2.1,
+     "texto": "Me duele mucho el pecho.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "sale pus con mal olor de la herida",
+   "origen": "alarmas_base",
+   "t_fin_audio": 2.717,
+   "mensajes": [
+    {
+     "t": 0.45,
+     "texto": "Sé",
+     "cerrado": false
+    },
+    {
+     "t": 1.732,
+     "texto": "Se impuso con mal olor de la",
+     "cerrado": false
+    },
+    {
+     "t": 2.732,
+     "texto": "Se impuso con mal olor de la herida.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy sangrando mucho, ya empapé una toalla",
+   "origen": "alarmas_base",
+   "t_fin_audio": 4.04,
+   "mensajes": [
+    {
+     "t": 0.559,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 1.857,
+     "texto": "Estoy sangrando mucho.",
+     "cerrado": false
+    },
+    {
+     "t": 3.293,
+     "texto": "Estoy sangrando mucho, ya empapé una toalla.",
+     "cerrado": false
+    },
+    {
+     "t": 4.04,
+     "texto": "Estoy sangrando mucho, ya empapé una toalla.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo la pantorrilla hinchada y me duele",
+   "origen": "alarmas_base",
+   "t_fin_audio": 3.169,
+   "mensajes": [
+    {
+     "t": 0.528,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 1.97,
+     "texto": "Tengo la pantorrilla hinchada.",
+     "cerrado": false
+    },
+    {
+     "t": 3.271,
+     "texto": "Tengo la pantorrilla hinchada y me duele.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me duele un poquito la herida",
+   "origen": "alarmas_base",
+   "t_fin_audio": 2.519,
+   "mensajes": [
+    {
+     "t": 0.453,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.76,
+     "texto": "Me duele un poquito la herida.",
+     "cerrado": false
+    },
+    {
+     "t": 2.641,
+     "texto": "Me duele un poquito la herida.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "todo bien, muchas gracias",
+   "origen": "alarmas_base",
+   "t_fin_audio": 3.192,
+   "mensajes": [
+    {
+     "t": 0.669,
+     "texto": "Todo",
+     "cerrado": false
+    },
+    {
+     "t": 1.986,
+     "texto": "Todo bien, muchachos.",
+     "cerrado": false
+    },
+    {
+     "t": 3.313,
+     "texto": "Todo bien, muchas gracias.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me desmayé esta mañana",
+   "origen": "alarmas_base",
+   "t_fin_audio": 2.295,
+   "mensajes": [
+    {
+     "t": 0.451,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.75,
+     "texto": "Me desmayé esta mañana.",
+     "cerrado": false
+    },
+    {
+     "t": 2.305,
+     "texto": "Me desmayé esta mañana.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no aguanto el dolor en el pecho",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 2.58,
+   "mensajes": [
+    {
+     "t": 0.43,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.841,
+     "texto": "No aguanto el dolor en el pecho.",
+     "cerrado": false
+    },
+    {
+     "t": 2.581,
+     "texto": "No aguanto el dolor en el pecho.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "ya no puedo más, me falta el aire",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.259,
+   "mensajes": [
+    {
+     "t": 0.408,
+     "texto": "Ya",
+     "cerrado": false
+    },
+    {
+     "t": 1.741,
+     "texto": "Ya no puedo más.",
+     "cerrado": false
+    },
+    {
+     "t": 3.272,
+     "texto": "Ya no puedo más, me falta el aire.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no me baja la fiebre",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 2.086,
+   "mensajes": [
+    {
+     "t": 0.445,
+     "texto": "Lo",
+     "cerrado": false
+    },
+    {
+     "t": 2.098,
+     "texto": "No me baja la fiebre.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no he tomado nada y tengo fiebre de 39 grados",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 4.055,
+   "mensajes": [
+    {
+     "t": 0.343,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.647,
+     "texto": "No he tomado nada y tengo",
+     "cerrado": false
+    },
+    {
+     "t": 2.982,
+     "texto": "No he tomado nada y tengo fiebre de 39 grados.",
+     "cerrado": false
+    },
+    {
+     "t": 4.255,
+     "texto": "No he tomado nada y tengo fiebre de 39 grados.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no se me quita el dolor y me salió pus en la herida",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.501,
+   "mensajes": [
+    {
+     "t": 0.427,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.85,
+     "texto": "No se me quita el dolor y me",
+     "cerrado": false
+    },
+    {
+     "t": 3.298,
+     "texto": "No se me quita el dolor y me salió pus en la herida.",
+     "cerrado": false
+    },
+    {
+     "t": 3.617,
+     "texto": "No se me quita el dolor y me salió pus en la herida.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "ayer no tenía fiebre, pero hoy tengo fiebre de 40",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 4.48,
+   "mensajes": [
+    {
+     "t": 0.446,
+     "texto": "Ay,",
+     "cerrado": false
+    },
+    {
+     "t": 1.762,
+     "texto": "Ayer no tenía fiebre.",
+     "cerrado": false
+    },
+    {
+     "t": 3.075,
+     "texto": "Ayer no tenía fiebre, pero hoy tengo fiebre",
+     "cerrado": false
+    },
+    {
+     "t": 4.591,
+     "texto": "Ayer no tenía fiebre, pero hoy tengo fiebre de 40.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo treinta y nueve de temperatura",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.185,
+   "mensajes": [
+    {
+     "t": 0.572,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 1.865,
+     "texto": "Tengo 39 de temperatura.",
+     "cerrado": false
+    },
+    {
+     "t": 3.309,
+     "texto": "Tengo 39 de temperatura.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "la fiebre me subió a treinta y nueve y medio",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.301,
+   "mensajes": [
+    {
+     "t": 0.339,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 1.764,
+     "texto": "La fiebre me subió a 39",
+     "cerrado": false
+    },
+    {
+     "t": 3.318,
+     "texto": "La fiebre me subió a 39 y medio.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy botando materia por la herida",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 2.928,
+   "mensajes": [
+    {
+     "t": 0.432,
+     "texto": "El",
+     "cerrado": false
+    },
+    {
+     "t": 1.767,
+     "texto": "Estoy botando materia por",
+     "cerrado": false
+    },
+    {
+     "t": 2.929,
+     "texto": "Estoy botando materia por la herida.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "la herida está botando un líquido feo y amarillo",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.544,
+   "mensajes": [
+    {
+     "t": 0.563,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 1.902,
+     "texto": "La herida está botando un líquido",
+     "cerrado": false
+    },
+    {
+     "t": 3.561,
+     "texto": "La herida está botando un líquido feo y amarillo.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me empapo una toalla higiénica cada hora",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.149,
+   "mensajes": [
+    {
+     "t": 0.426,
+     "texto": "Me he",
+     "cerrado": false
+    },
+    {
+     "t": 1.863,
+     "texto": "Me empapo una toalla higiénica",
+     "cerrado": false
+    },
+    {
+     "t": 3.16,
+     "texto": "Me empapo una toalla higiénica cada hora.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "se me abrió la herida y se ven los puntos por dentro",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.602,
+   "mensajes": [
+    {
+     "t": 0.451,
+     "texto": "Se",
+     "cerrado": false
+    },
+    {
+     "t": 1.864,
+     "texto": "Se me abrió la herida y se ven",
+     "cerrado": false
+    },
+    {
+     "t": 3.161,
+     "texto": "Se me abrió la herida y se ven los puntos por dentro.",
+     "cerrado": false
+    },
+    {
+     "t": 3.799,
+     "texto": "Se me abrió la herida y se ven los puntos por dentro.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "sigo sin poder respirar bien",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 2.614,
+   "mensajes": [
+    {
+     "t": 0.421,
+     "texto": "Sigo",
+     "cerrado": false
+    },
+    {
+     "t": 1.732,
+     "texto": "Sigo sin poder respirar bien.",
+     "cerrado": false
+    },
+    {
+     "t": 2.829,
+     "texto": "Sigo sin poder respirar bien.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me cuesta respirar",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 2.057,
+   "mensajes": [
+    {
+     "t": 0.427,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.848,
+     "texto": "Me cuesta respirar.",
+     "cerrado": false
+    },
+    {
+     "t": 2.231,
+     "texto": "Me cuesta respirar.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "pues hoy está un poco más fuerte",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 2.925,
+   "mensajes": [
+    {
+     "t": 0.741,
+     "texto": "Pues",
+     "cerrado": false
+    },
+    {
+     "t": 2.175,
+     "texto": "Pues hoy está un poco más fuerte.",
+     "cerrado": false
+    },
+    {
+     "t": 3.025,
+     "texto": "Pues hoy está un poco más fuerte.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "el dolor no ha mejorado, sigue igual de fuerte",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.941,
+   "mensajes": [
+    {
+     "t": 0.448,
+     "texto": "El",
+     "cerrado": false
+    },
+    {
+     "t": 1.771,
+     "texto": "El dolor no ha mejorado.",
+     "cerrado": false
+    },
+    {
+     "t": 3.083,
+     "texto": "El dolor no ha mejorado, sigue igual de",
+     "cerrado": false
+    },
+    {
+     "t": 3.958,
+     "texto": "El dolor no ha mejorado, sigue igual de fuerte.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "mi hija tiene fiebre, ¿me puedo contagiar en el postoperatorio?",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 4.79,
+   "mensajes": [
+    {
+     "t": 0.316,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.855,
+     "texto": "Mi hija tiene fiebre.",
+     "cerrado": false
+    },
+    {
+     "t": 3.166,
+     "texto": "Mi hija tiene fiebre, me puedo contagiar en el",
+     "cerrado": false
+    },
+    {
+     "t": 4.475,
+     "texto": "Mi hija tiene fiebre, me puedo contagiar en el postoperatorio.",
+     "cerrado": false
+    },
+    {
+     "t": 5.031,
+     "texto": "Mi hija tiene fiebre, me puedo contagiar en el postoperatorio.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "¿es normal un poco de secreción transparente los primeros días?",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 4.405,
+   "mensajes": [
+    {
+     "t": 0.448,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 1.892,
+     "texto": "Es normal un poco de secreción.",
+     "cerrado": false
+    },
+    {
+     "t": 3.296,
+     "texto": "Es normal un poco de secreción transparente los primeros",
+     "cerrado": false
+    },
+    {
+     "t": 4.641,
+     "texto": "Es normal un poco de secreción transparente los primeros días.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "¿qué hago si me llega a dar fiebre más adelante?",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.371,
+   "mensajes": [
+    {
+     "t": 0.447,
+     "texto": "¿Qué",
+     "cerrado": false
+    },
+    {
+     "t": 1.847,
+     "texto": "¿Qué hago si me llega a dar fiebre?",
+     "cerrado": false
+    },
+    {
+     "t": 3.497,
+     "texto": "¿Qué hago si me llega a dar fiebre más adelante?",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "el médico me dijo que si hay pus llame de inmediato",
+   "origen": "alarmas_adversariales",
+   "t_fin_audio": 3.711,
+   "mensajes": [
+    {
+     "t": 0.446,
+     "texto": "El",
+     "cerrado": false
+    },
+    {
+     "t": 1.866,
+     "texto": "El médico me dijo que si hay",
+     "cerrado": false
+    },
+    {
+     "t": 3.289,
+     "texto": "El médico me dijo que si hay pus llame de inmediato.",
+     "cerrado": false
+    },
+    {
+     "t": 3.829,
+     "texto": "El médico me dijo que si hay pus llame de inmediato.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no me entra el aire",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.105,
+   "mensajes": [
+    {
+     "t": 0.461,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 2.236,
+     "texto": "No me entra el aire.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me quedo sin aire con solo caminar",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.832,
+   "mensajes": [
+    {
+     "t": 0.309,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.633,
+     "texto": "Me quedo sin aire con solo",
+     "cerrado": false
+    },
+    {
+     "t": 2.938,
+     "texto": "Me quedo sin aire con solo caminar.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me fatigo al caminar hasta el baño",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.858,
+   "mensajes": [
+    {
+     "t": 0.563,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.993,
+     "texto": "Me fatigo al caminar hasta el",
+     "cerrado": false
+    },
+    {
+     "t": 2.858,
+     "texto": "Me fatigo al caminar hasta el baño.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "siento que me asfixio",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.321,
+   "mensajes": [
+    {
+     "t": 0.433,
+     "texto": "Siento",
+     "cerrado": false
+    },
+    {
+     "t": 1.656,
+     "texto": "Siento que me asfixio.",
+     "cerrado": false
+    },
+    {
+     "t": 2.108,
+     "texto": "Siento que me asfixio.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me agito mucho al caminar",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.417,
+   "mensajes": [
+    {
+     "t": 0.436,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.771,
+     "texto": "Me agito mucho al caminar.",
+     "cerrado": false
+    },
+    {
+     "t": 2.537,
+     "texto": "Me agito mucho al caminar.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me cuesta trabajo respirar",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.542,
+   "mensajes": [
+    {
+     "t": 0.447,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.666,
+     "texto": "Me cuesta trabajo respirar.",
+     "cerrado": false
+    },
+    {
+     "t": 2.64,
+     "texto": "Me cuesta trabajo respirar.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "siento el pecho apretado",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.38,
+   "mensajes": [
+    {
+     "t": 0.45,
+     "texto": "Siento",
+     "cerrado": false
+    },
+    {
+     "t": 1.866,
+     "texto": "Siento el pecho apretado.",
+     "cerrado": false
+    },
+    {
+     "t": 2.278,
+     "texto": "Siento el pecho apretado.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo un peso en el pecho",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.511,
+   "mensajes": [
+    {
+     "t": 0.667,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 1.983,
+     "texto": "Tengo un peso en el pecho.",
+     "cerrado": false
+    },
+    {
+     "t": 2.404,
+     "texto": "Tengo un peso en el pecho.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "una punzada en el pecho",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.421,
+   "mensajes": [
+    {
+     "t": 0.435,
+     "texto": "Una",
+     "cerrado": false
+    },
+    {
+     "t": 1.751,
+     "texto": "Una punzada en el pecho.",
+     "cerrado": false
+    },
+    {
+     "t": 2.202,
+     "texto": "Una punzada en el pecho.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me dio un yeyo en el baño",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.313,
+   "mensajes": [
+    {
+     "t": 0.553,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 2.434,
+     "texto": "Me dio un yello en el baño.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me dio la pálida y me senté",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.527,
+   "mensajes": [
+    {
+     "t": 0.53,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.865,
+     "texto": "Me dio la pálida y me senté.",
+     "cerrado": false
+    },
+    {
+     "t": 2.623,
+     "texto": "Me dio la pálida y me senté.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "le dio un patatús",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.085,
+   "mensajes": [
+    {
+     "t": 0.442,
+     "texto": "Le",
+     "cerrado": false
+    },
+    {
+     "t": 1.775,
+     "texto": "Le dio un patatús.",
+     "cerrado": false
+    },
+    {
+     "t": 2.29,
+     "texto": "Le dio un patatús.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "vi todo negro",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.868,
+   "mensajes": [
+    {
+     "t": 0.448,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 2.0,
+     "texto": "Vi todo negro.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "se me fue la vista un momento",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.603,
+   "mensajes": [
+    {
+     "t": 0.419,
+     "texto": "Se",
+     "cerrado": false
+    },
+    {
+     "t": 1.842,
+     "texto": "Se me fue la vista un momento.",
+     "cerrado": false
+    },
+    {
+     "t": 2.751,
+     "texto": "Se me fue la vista un momento.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "perdí el sentido",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.194,
+   "mensajes": [
+    {
+     "t": 0.669,
+     "texto": "Pero",
+     "cerrado": false
+    },
+    {
+     "t": 2.206,
+     "texto": "Perdí el sentido.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy destemplada desde anoche",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.727,
+   "mensajes": [
+    {
+     "t": 0.334,
+     "texto": "El",
+     "cerrado": false
+    },
+    {
+     "t": 1.735,
+     "texto": "Estoy destemplada desde",
+     "cerrado": false
+    },
+    {
+     "t": 2.832,
+     "texto": "Estoy destemplada desde anoche.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "ando con quebranto",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.094,
+   "mensajes": [
+    {
+     "t": 0.672,
+     "texto": "Anoche",
+     "cerrado": false
+    },
+    {
+     "t": 2.217,
+     "texto": "Ando con quebranto.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy que ardo",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.86,
+   "mensajes": [
+    {
+     "t": 0.561,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 1.759,
+     "texto": "Estoy que ardo.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me subió la temperatura",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.306,
+   "mensajes": [
+    {
+     "t": 0.419,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.753,
+     "texto": "Me subió la temperatura.",
+     "cerrado": false
+    },
+    {
+     "t": 2.404,
+     "texto": "Me subió la temperatura.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "ando con escalofríos",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.302,
+   "mensajes": [
+    {
+     "t": 0.431,
+     "texto": "Al",
+     "cerrado": false
+    },
+    {
+     "t": 1.887,
+     "texto": "Ando con escalofríos.",
+     "cerrado": false
+    },
+    {
+     "t": 2.533,
+     "texto": "Ando con escalofríos.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo 39.5 grados",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 3.51,
+   "mensajes": [
+    {
+     "t": 0.651,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 2.026,
+     "texto": "Tengo 39.",
+     "cerrado": false
+    },
+    {
+     "t": 3.722,
+     "texto": "Tengo 39.5 grados.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy hirviendo",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.976,
+   "mensajes": [
+    {
+     "t": 0.339,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 1.875,
+     "texto": "Estoy hirviendo.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo calentura",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.093,
+   "mensajes": [
+    {
+     "t": 0.675,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 2.057,
+     "texto": "Tengo calentura.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "está botando materia",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.313,
+   "mensajes": [
+    {
+     "t": 0.433,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 1.88,
+     "texto": "Está botando materia.",
+     "cerrado": false
+    },
+    {
+     "t": 2.212,
+     "texto": "Está botando materia.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "le sale materia por la herida",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.526,
+   "mensajes": [
+    {
+     "t": 0.558,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 1.987,
+     "texto": "Le sale materia por la herida.",
+     "cerrado": false
+    },
+    {
+     "t": 2.449,
+     "texto": "Le sale materia por la herida.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "la herida huele maluco",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.274,
+   "mensajes": [
+    {
+     "t": 0.446,
+     "texto": "Le",
+     "cerrado": false
+    },
+    {
+     "t": 1.765,
+     "texto": "La herida huele maluco.",
+     "cerrado": false
+    },
+    {
+     "t": 2.236,
+     "texto": "La herida huele maluco.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "sale un líquido amarillo espeso",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.774,
+   "mensajes": [
+    {
+     "t": 0.453,
+     "texto": "Sí,",
+     "cerrado": false
+    },
+    {
+     "t": 1.793,
+     "texto": "Sale un líquido amarillo",
+     "cerrado": false
+    },
+    {
+     "t": 2.781,
+     "texto": "Sale un líquido amarillo espeso.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "se me puso roja la herida",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.418,
+   "mensajes": [
+    {
+     "t": 0.449,
+     "texto": "Se",
+     "cerrado": false
+    },
+    {
+     "t": 1.877,
+     "texto": "Se me puso roja la herida.",
+     "cerrado": false
+    },
+    {
+     "t": 2.419,
+     "texto": "Se me puso roja la herida.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "la herida está caliente",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.29,
+   "mensajes": [
+    {
+     "t": 0.433,
+     "texto": "Le",
+     "cerrado": false
+    },
+    {
+     "t": 2.216,
+     "texto": "La herida está caliente.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "creo que se me infectó",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.299,
+   "mensajes": [
+    {
+     "t": 0.669,
+     "texto": "Gracias.",
+     "cerrado": false
+    },
+    {
+     "t": 2.31,
+     "texto": "Creo que se me infectó.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "ayer no tenía fiebre pero hoy sí tengo",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 3.156,
+   "mensajes": [
+    {
+     "t": 0.314,
+     "texto": "Hay",
+     "cerrado": false
+    },
+    {
+     "t": 1.838,
+     "texto": "Ayer no tenía fiebre, pero",
+     "cerrado": false
+    },
+    {
+     "t": 3.079,
+     "texto": "Ayer no tenía fiebre, pero hoy sí tengo.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no tenía fiebre pero ahora sí",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.642,
+   "mensajes": [
+    {
+     "t": 0.448,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.885,
+     "texto": "No tenía fiebre, pero ahora sí.",
+     "cerrado": false
+    },
+    {
+     "t": 2.748,
+     "texto": "No tenía fiebre, pero ahora sí.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy botando cuajarones",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.515,
+   "mensajes": [
+    {
+     "t": 0.569,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 2.003,
+     "texto": "Estoy botando cuajarones.",
+     "cerrado": false
+    },
+    {
+     "t": 2.715,
+     "texto": "Estoy botando cuajarones.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy chorreando sangre",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.384,
+   "mensajes": [
+    {
+     "t": 0.45,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 1.838,
+     "texto": "Estoy chorreando sangre.",
+     "cerrado": false
+    },
+    {
+     "t": 2.311,
+     "texto": "Estoy chorreando sangre.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "sangra harto",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.764,
+   "mensajes": [
+    {
+     "t": 0.439,
+     "texto": "Se",
+     "cerrado": false
+    },
+    {
+     "t": 1.776,
+     "texto": "Sangra harto.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "ya empapé el apósito",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.326,
+   "mensajes": [
+    {
+     "t": 0.425,
+     "texto": "Ya",
+     "cerrado": false
+    },
+    {
+     "t": 1.759,
+     "texto": "Ya empapé el apósito.",
+     "cerrado": false
+    },
+    {
+     "t": 2.212,
+     "texto": "Ya empapé el apósito.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no para de sangrar",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.985,
+   "mensajes": [
+    {
+     "t": 0.6,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 2.081,
+     "texto": "No para de sangrar.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "se me soltó un punto",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.29,
+   "mensajes": [
+    {
+     "t": 0.434,
+     "texto": "Sí,",
+     "cerrado": false
+    },
+    {
+     "t": 1.969,
+     "texto": "Se me soltó un punto.",
+     "cerrado": false
+    },
+    {
+     "t": 2.258,
+     "texto": "Se me soltó un punto.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "se me descosió la herida",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.292,
+   "mensajes": [
+    {
+     "t": 0.643,
+     "texto": "Sí,",
+     "cerrado": false
+    },
+    {
+     "t": 2.414,
+     "texto": "Se me descosió la herida.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "se reventaron los puntos",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.527,
+   "mensajes": [
+    {
+     "t": 0.448,
+     "texto": "Se",
+     "cerrado": false
+    },
+    {
+     "t": 1.867,
+     "texto": "Se reventaron los puntos.",
+     "cerrado": false
+    },
+    {
+     "t": 2.763,
+     "texto": "Se reventaron los puntos.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "hoy está un poco más fuerte",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.511,
+   "mensajes": [
+    {
+     "t": 0.559,
+     "texto": "Hoy",
+     "cerrado": false
+    },
+    {
+     "t": 1.869,
+     "texto": "Hoy está un poco más fuerte.",
+     "cerrado": false
+    },
+    {
+     "t": 2.459,
+     "texto": "Hoy está un poco más fuerte.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no se me quita",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.895,
+   "mensajes": [
+    {
+     "t": 0.453,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.845,
+     "texto": "No se me quita.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "cada vez más",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.964,
+   "mensajes": [
+    {
+     "t": 0.676,
+     "texto": "Cada",
+     "cerrado": false
+    },
+    {
+     "t": 1.965,
+     "texto": "Cada vez más.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "en vez de mejorar va peor",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.413,
+   "mensajes": [
+    {
+     "t": 0.432,
+     "texto": "Hemos",
+     "cerrado": false
+    },
+    {
+     "t": 1.875,
+     "texto": "En vez de mejorar va peor.",
+     "cerrado": false
+    },
+    {
+     "t": 2.512,
+     "texto": "En vez de mejorar, va a peor.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no me ha bajado",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.862,
+   "mensajes": [
+    {
+     "t": 0.453,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.886,
+     "texto": "No me ha bajado.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "está peor que anoche",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.17,
+   "mensajes": [
+    {
+     "t": 3.095,
+     "texto": "Está peor que anoche.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "el dolor no cede",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.967,
+   "mensajes": [
+    {
+     "t": 0.457,
+     "texto": "El",
+     "cerrado": false
+    },
+    {
+     "t": 1.977,
+     "texto": "El dolor no cede.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo un dolor tenaz",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.279,
+   "mensajes": [
+    {
+     "t": 0.548,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 2.279,
+     "texto": "Tengo un dolor tenaz.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me duele durísimo",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.945,
+   "mensajes": [
+    {
+     "t": 0.31,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 2.066,
+     "texto": "Me duele durísimo.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me duele un resto",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.961,
+   "mensajes": [
+    {
+     "t": 0.449,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 2.079,
+     "texto": "Me duele un resto.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no aguanto el dolor",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.964,
+   "mensajes": [
+    {
+     "t": 0.447,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 2.069,
+     "texto": "No aguanto el dolor.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "es un dolor berraco",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.069,
+   "mensajes": [
+    {
+     "t": 0.54,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 2.162,
+     "texto": "Es un dolor berraco.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy trasbocando todo",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.41,
+   "mensajes": [
+    {
+     "t": 0.451,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 1.794,
+     "texto": "Estoy trasbocando todo.",
+     "cerrado": false
+    },
+    {
+     "t": 2.41,
+     "texto": "Estoy trasbocando todo.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "devuelvo todo lo que como",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.366,
+   "mensajes": [
+    {
+     "t": 0.426,
+     "texto": "De",
+     "cerrado": false
+    },
+    {
+     "t": 1.825,
+     "texto": "Devuelvo todo lo que como.",
+     "cerrado": false
+    },
+    {
+     "t": 2.375,
+     "texto": "Devuelvo todo lo que como.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo el estómago revuelto",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.74,
+   "mensajes": [
+    {
+     "t": 0.559,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 1.86,
+     "texto": "Tengo el estómago revuelto.",
+     "cerrado": false
+    },
+    {
+     "t": 2.684,
+     "texto": "Tengo el estómago revuelto.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo muchas náuseas",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.384,
+   "mensajes": [
+    {
+     "t": 0.636,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 1.948,
+     "texto": "Tengo muchas náuseas.",
+     "cerrado": false
+    },
+    {
+     "t": 2.61,
+     "texto": "Tengo muchas náuseas.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo los ojos amarillos",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.644,
+   "mensajes": [
+    {
+     "t": 0.673,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 1.874,
+     "texto": "Tengo los ojos amarillos.",
+     "cerrado": false
+    },
+    {
+     "t": 2.763,
+     "texto": "Tengo los ojos amarillos.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "la orina como coca cola",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.385,
+   "mensajes": [
+    {
+     "t": 0.444,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 1.857,
+     "texto": "La orina como Coca-Cola.",
+     "cerrado": false
+    },
+    {
+     "t": 2.281,
+     "texto": "La orina como Coca-Cola.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy amarilla",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.964,
+   "mensajes": [
+    {
+     "t": 0.457,
+     "texto": "Estoy",
+     "cerrado": false
+    },
+    {
+     "t": 1.884,
+     "texto": "Estoy amarilla.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me siento muy maluca",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.164,
+   "mensajes": [
+    {
+     "t": 0.555,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 2.165,
+     "texto": "Me siento muy maluca.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy descompuesto",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.163,
+   "mensajes": [
+    {
+     "t": 0.453,
+     "texto": "Es",
+     "cerrado": false
+    },
+    {
+     "t": 1.726,
+     "texto": "Estoy descompuesto.",
+     "cerrado": false
+    },
+    {
+     "t": 2.173,
+     "texto": "Estoy descompuesto.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me siento aporreado",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.086,
+   "mensajes": [
+    {
+     "t": 0.445,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 2.098,
+     "texto": "Me siento aporreado.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no tengo fuerzas",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.057,
+   "mensajes": [
+    {
+     "t": 0.319,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 2.175,
+     "texto": "No tengo fuerzas.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no he podido obrar",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.962,
+   "mensajes": [
+    {
+     "t": 0.449,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 2.083,
+     "texto": "No he podido obrar.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no he expulsado gases",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.381,
+   "mensajes": [
+    {
+     "t": 0.422,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.743,
+     "texto": "No he expulsado gases.",
+     "cerrado": false
+    },
+    {
+     "t": 2.593,
+     "texto": "No he expulsado gases.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no puedo orinar",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.856,
+   "mensajes": [
+    {
+     "t": 0.342,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.965,
+     "texto": "No puedo orinar.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me arde al orinar",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.818,
+   "mensajes": [
+    {
+     "t": 0.516,
+     "texto": "Me ha",
+     "cerrado": false
+    },
+    {
+     "t": 1.83,
+     "texto": "Me arde al orinar.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no puedo respirar",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.963,
+   "mensajes": [
+    {
+     "t": 0.323,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 2.097,
+     "texto": "No puedo respirar.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no tenía fiebre",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.935,
+   "mensajes": [
+    {
+     "t": 0.415,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 2.024,
+     "texto": "No tenía fiebre.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no sentía dolor en la herida",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.477,
+   "mensajes": [
+    {
+     "t": 0.419,
+     "texto": "Lo",
+     "cerrado": false
+    },
+    {
+     "t": 1.719,
+     "texto": "No sentía dolor en la herida.",
+     "cerrado": false
+    },
+    {
+     "t": 2.361,
+     "texto": "No sentía dolor en la herida.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no veía sangrado",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.076,
+   "mensajes": [
+    {
+     "t": 0.337,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 1.993,
+     "texto": "No veía sangrado.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "el dolor va cediendo cada día",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.753,
+   "mensajes": [
+    {
+     "t": 0.556,
+     "texto": "El",
+     "cerrado": false
+    },
+    {
+     "t": 2.0,
+     "texto": "El dolor va cediendo cada día.",
+     "cerrado": false
+    },
+    {
+     "t": 2.872,
+     "texto": "El dolor va cediendo cada día.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "ya no me duele nada",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.076,
+   "mensajes": [
+    {
+     "t": 0.46,
+     "texto": "Ya",
+     "cerrado": false
+    },
+    {
+     "t": 2.2,
+     "texto": "Ya no me duele nada.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me siento mejor que ayer",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.291,
+   "mensajes": [
+    {
+     "t": 0.342,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.738,
+     "texto": "Me siento mejor que ayer.",
+     "cerrado": false
+    },
+    {
+     "t": 2.397,
+     "texto": "Me siento mejor que ayer.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no tengo fiebre ni escalofríos",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.838,
+   "mensajes": [
+    {
+     "t": 0.449,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.979,
+     "texto": "No tengo fiebre ni escalofrío.",
+     "cerrado": false
+    },
+    {
+     "t": 3.078,
+     "texto": "No tengo fiebre ni escalofríos.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "la herida está limpia y seca",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.607,
+   "mensajes": [
+    {
+     "t": 0.555,
+     "texto": "Le",
+     "cerrado": false
+    },
+    {
+     "t": 1.838,
+     "texto": "La herida está limpia y seca.",
+     "cerrado": false
+    },
+    {
+     "t": 2.508,
+     "texto": "La herida está limpia y seca.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no he vomitado nada",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.09,
+   "mensajes": [
+    {
+     "t": 0.336,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 2.179,
+     "texto": "No he vomitado nada.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no hay sangrado",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 1.836,
+   "mensajes": [
+    {
+     "t": 0.429,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.836,
+     "texto": "No hay sangrado.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "ya pude obrar normal",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.179,
+   "mensajes": [
+    {
+     "t": 0.447,
+     "texto": "Ya",
+     "cerrado": false
+    },
+    {
+     "t": 2.297,
+     "texto": "Ya pude obrar normal.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "puedo respirar bien",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.279,
+   "mensajes": [
+    {
+     "t": 0.777,
+     "texto": "Puedo",
+     "cerrado": false
+    },
+    {
+     "t": 2.387,
+     "texto": "Puedo respirar bien.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "estoy caminando todos los días sin problema",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 3.47,
+   "mensajes": [
+    {
+     "t": 0.337,
+     "texto": "El",
+     "cerrado": false
+    },
+    {
+     "t": 1.636,
+     "texto": "Estoy caminando todos",
+     "cerrado": false
+    },
+    {
+     "t": 2.952,
+     "texto": "Estoy caminando todos los días sin problema.",
+     "cerrado": false
+    },
+    {
+     "t": 3.365,
+     "texto": "Estoy caminando todos los días sin problema.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me tomé las pastas a la hora",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.476,
+   "mensajes": [
+    {
+     "t": 0.422,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.816,
+     "texto": "Me tomé las pastas a la hora.",
+     "cerrado": false
+    },
+    {
+     "t": 2.704,
+     "texto": "Me tomé las pastas a la hora.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "la cicatriz se ve bien",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.288,
+   "mensajes": [
+    {
+     "t": 0.444,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 1.744,
+     "texto": "La cicatriz se ve bien.",
+     "cerrado": false
+    },
+    {
+     "t": 2.399,
+     "texto": "La cicatriz se ve bien.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "¿cuándo puedo volver a manejar?",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.651,
+   "mensajes": [
+    {
+     "t": 0.664,
+     "texto": "Cuando",
+     "cerrado": false
+    },
+    {
+     "t": 1.992,
+     "texto": "¿Cuándo puedo volver a manejar?",
+     "cerrado": false
+    },
+    {
+     "t": 2.903,
+     "texto": "¿Cuándo puedo volver a manejar?",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "dormí bien anoche",
+   "origen": "lexico_colombiano",
+   "t_fin_audio": 2.078,
+   "mensajes": [
+    {
+     "t": 0.45,
+     "texto": "Dolor",
+     "cerrado": false
+    },
+    {
+     "t": 2.199,
+     "texto": "¿Dormí bien anoche?",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "he tenido infección",
+   "origen": "confusiones",
+   "t_fin_audio": 2.075,
+   "mensajes": [
+    {
+     "t": 0.449,
+     "texto": "¿El",
+     "cerrado": false
+    },
+    {
+     "t": 2.095,
+     "texto": "He tenido infección.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "creo que tengo una infección en la herida",
+   "origen": "confusiones",
+   "t_fin_audio": 3.04,
+   "mensajes": [
+    {
+     "t": 0.422,
+     "texto": "¿Qué",
+     "cerrado": false
+    },
+    {
+     "t": 1.752,
+     "texto": "Creo que tengo una infección.",
+     "cerrado": false
+    },
+    {
+     "t": 3.056,
+     "texto": "Creo que tengo una infección en la herida.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "visión borrosa desde ayer",
+   "origen": "confusiones",
+   "t_fin_audio": 2.401,
+   "mensajes": [
+    {
+     "t": 0.562,
+     "texto": "¿Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.977,
+     "texto": "Visión borrosa desde ayer.",
+     "cerrado": false
+    },
+    {
+     "t": 2.522,
+     "texto": "Visión borrosa desde ayer.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo treinta y ocho y medio de fiebre",
+   "origen": "confusiones",
+   "t_fin_audio": 3.173,
+   "mensajes": [
+    {
+     "t": 0.784,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 2.076,
+     "texto": "Tengo 38 y medio de",
+     "cerrado": false
+    },
+    {
+     "t": 3.189,
+     "texto": "Tengo 38 y medio de fiebre.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "el termómetro marcó treinta y nueve cinco",
+   "origen": "confusiones",
+   "t_fin_audio": 3.414,
+   "mensajes": [
+    {
+     "t": 0.435,
+     "texto": "El dolor",
+     "cerrado": false
+    },
+    {
+     "t": 1.659,
+     "texto": "El termómetro marcó 39.",
+     "cerrado": false
+    },
+    {
+     "t": 3.512,
+     "texto": "El termómetro marcó 39,5.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "el dolor está en nueve sobre diez",
+   "origen": "confusiones",
+   "t_fin_audio": 2.752,
+   "mensajes": [
+    {
+     "t": 0.435,
+     "texto": "El",
+     "cerrado": false
+    },
+    {
+     "t": 1.866,
+     "texto": "El dolor está en 9 sobre",
+     "cerrado": false
+    },
+    {
+     "t": 2.98,
+     "texto": "El dolor está en 9 sobre 10.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "la temperatura me llegó a cuarenta",
+   "origen": "confusiones",
+   "t_fin_audio": 2.812,
+   "mensajes": [
+    {
+     "t": 0.426,
+     "texto": "La",
+     "cerrado": false
+    },
+    {
+     "t": 1.721,
+     "texto": "La temperatura me llegó a",
+     "cerrado": false
+    },
+    {
+     "t": 2.83,
+     "texto": "La temperatura me llegó a 40.",
+     "cerrado": false
+    },
+    {
+     "t": 3.042,
+     "texto": "La temperatura me llegó a 40.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me duele el pecho, y se me corre hacia el brazo izquierdo",
+   "origen": "confusiones",
+   "t_fin_audio": 4.406,
+   "mensajes": [
+    {
+     "t": 0.572,
+     "texto": "Me",
+     "cerrado": false
+    },
+    {
+     "t": 1.892,
+     "texto": "Me duele el pecho y",
+     "cerrado": false
+    },
+    {
+     "t": 3.33,
+     "texto": "Me duele el pecho y se me corre hacia el brazo",
+     "cerrado": false
+    },
+    {
+     "t": 4.419,
+     "texto": "Me duele el pecho y se me corre hacia el brazo izquierdo.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "me duele, y me sube hasta la quijada",
+   "origen": "confusiones",
+   "t_fin_audio": 3.414,
+   "mensajes": [
+    {
+     "t": 0.448,
+     "texto": "No",
+     "cerrado": false
+    },
+    {
+     "t": 1.782,
+     "texto": "Me duele y me sube",
+     "cerrado": false
+    },
+    {
+     "t": 3.368,
+     "texto": "Me duele y me sube hasta la quijada.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "tengo la barriga hinchada, y dura",
+   "origen": "confusiones",
+   "t_fin_audio": 3.383,
+   "mensajes": [
+    {
+     "t": 0.673,
+     "texto": "Tengo",
+     "cerrado": false
+    },
+    {
+     "t": 2.092,
+     "texto": "Tengo la barriga hinchada.",
+     "cerrado": false
+    },
+    {
+     "t": 3.275,
+     "texto": "Tengo la barriga hinchada y dura.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "de la herida me sale un líquido, como amarillo",
+   "origen": "confusiones",
+   "t_fin_audio": 3.861,
+   "mensajes": [
+    {
+     "t": 0.568,
+     "texto": "De",
+     "cerrado": false
+    },
+    {
+     "t": 1.997,
+     "texto": "De la herida me sale un líquido.",
+     "cerrado": false
+    },
+    {
+     "t": 3.75,
+     "texto": "De la herida me sale un líquido como amarillo.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "no, no tengo fiebre",
+   "origen": "confusiones",
+   "t_fin_audio": 2.651,
+   "mensajes": [
+    {
+     "t": 0.444,
+     "texto": "No.",
+     "cerrado": false
+    },
+    {
+     "t": 1.674,
+     "texto": "No, no tengo fiebre.",
+     "cerrado": false
+    },
+    {
+     "t": 2.539,
+     "texto": "No, no tengo fiebre.",
+     "cerrado": true
+    }
+   ]
+  },
+  {
+   "dicho": "se me durmió la pierna, y la tengo helada",
+   "origen": "confusiones",
+   "t_fin_audio": 3.628,
+   "mensajes": [
+    {
+     "t": 0.344,
+     "texto": "Sí,",
+     "cerrado": false
+    },
+    {
+     "t": 1.646,
+     "texto": "Se me durmió la pierna.",
+     "cerrado": false
+    },
+    {
+     "t": 2.989,
+     "texto": "Se me durmió la pierna y la tengo helada.",
+     "cerrado": false
+    },
+    {
+     "t": 3.582,
+     "texto": "Se me durmió la pierna y la tengo helada.",
+     "cerrado": true
+    }
+   ]
+  }
+ ]
+}

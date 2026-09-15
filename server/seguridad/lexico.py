@@ -1,10 +1,14 @@
 """Léxico clínico colombiano: cómo dice un paciente lo que el protocolo nombra.
 
-**Procedencia.** Traído sin cambios de `server/agent/lexicon.py` en
+**Procedencia.** Traído de `server/agent/lexicon.py` en
 [vera_voice_agent](https://github.com/LuisRG12/vera_voice_agent) (agosto 2026,
 commit 1827f0e). Las notas de cada entrada conservan la llamada o la medición
 que la originó allá; algunas nombran piezas de ese proyecto que aquí todavía no
 existen —el juez de riesgo, la consola, el índice de hechos clínicos—.
+
+Durante el reto cambió lo que dependía del reconocedor: el bloque de
+confusiones, re-medido contra AssemblyAI, y las cifras de `fiebre`, que ahora
+llegan en dígitos. Ver `evals/confusiones.py` y docs/bitacora.md.
 
 **Qué es y qué NO es.** Esto es *comprensión del habla del paciente*, no
 conocimiento clínico. El contenido clínico —qué umbral, qué signo de alarma,
@@ -39,6 +43,15 @@ junto a «botando materia» en una lista que un clínico debe poder leer y ampli
 fonética, es que el modelo de lenguaje de Vosk **cambie una palabra rara por una
 común que suena parecido**. Ahí no hay clase de sonido que tolerar: hay un par
 observado, y se declara uno a uno con la llamada que lo produjo.
+
+**El bloque está vacío desde que el oído es AssemblyAI.** Las confusiones son de
+un reconocedor concreto, y la única que había —«inspección» por «infección»— no
+apareció nunca en el barrido de `evals/confusiones.py`, ni siquiera diciendo «he
+tenido infección», que fue la frase que la originó. Conservarla era pagar su
+falso positivo sin su beneficio. El mecanismo se queda: lo que AssemblyAI
+confunda con habla real se declara aquí, con la transcripción que lo mostró.
+Lo que su formateo deforma —cifras en dígitos, guiones— no es una confusión de
+palabra sino de escritura, y se absorbe en el patrón o en `compilar_termino`.
 
 **Por qué no se corrige el texto con un modelo.** Sería poner un generativo
 delante de la capa determinista: las reglas dejarían de leer al paciente para
@@ -173,8 +186,21 @@ LEXICON: dict[str, dict] = {
             # Index). Esto cubre las formas escritas y habladas más comunes.
             # Con decimales: "39.5 grados" no disparaba porque el patrón exigía
             # que "grados" siguiera inmediatamente a la parte entera.
-            r"(38[.,][5-9]|39([.,]\d)?|4[01]([.,]\d)?)\s*(grados|°)",
-            r"temperatura (de |en )?(38[.,][5-9]|39|40|41)",
+            #
+            # AssemblyAI escribe las cifras en dígitos —Vosk las entregaba en
+            # letras— y así «tengo treinta y nueve de temperatura» llegó como
+            # «Tengo 39 de temperatura.»: fiebre alta que pasaba de `high` a
+            # `none`. Medido con evals/confusiones.py. Por eso la cifra en dígitos
+            # acepta ahora las mismas colas que la cifra en letras.
+            r"(38[.,][5-9]|38\s+y\s+medio|39([.,]\d)?|4[01]([.,]\d)?)\s*(grados|°|de\s+(temperatura|fiebre))",
+            # La cifra DESPUÉS de nombrar la temperatura o el termómetro: «la
+            # temperatura me llegó a 40», «el termómetro marcó 39,5». Ninguna de
+            # las dos disparaba, ni escrita ni transcrita. Se excluyen las
+            # unidades que no son de temperatura para que «la temperatura bien,
+            # tengo 40 años» no sea una fiebre.
+            r"(temperatura|term[oó]metro)[^.]{0,20}"
+            r"\b(38[.,][5-9]|38\s+y\s+medio|39([.,]\d)?|4[01]([.,]\d)?|treinta y (ocho y medio|nueve)|cuarenta)\b"
+            r"(?!\s*(a[ñn]os|kilos|minutos|horas|d[ií]as|semanas|mil|pesos))",
             r"(treinta y (ocho y medio|nueve)|cuarenta)\s*(grados|de\s+(temperatura|fiebre))",
         ],
         "nota": "'quebranto' en Colombia = destemplanza, temperatura elevada sin "
@@ -200,18 +226,14 @@ LEXICON: dict[str, dict] = {
             # rojo/caliente/hinchado) son demasiadas para enumerarlas.
             r"se (me |le )?(puso|ha puesto|volvi[oó]|torn[oó])\s+(muy\s+)?(roj|caliente|hinchad|dur[ao]\b|morad)",
         ],
-        # Llamada 83, turnos 15 y 16: el paciente dijo «he tenido infección» tres
-        # veces y el reconocedor entregó «inspección» las tres. No es fonética
-        # —«f» no se confunde con «sp»—: es el modelo de lenguaje de Vosk
-        # prefiriendo la palabra frecuente. El juez de riesgo lo leyó al pie de la
-        # letra —«mencionó que ha tenido una inspección, lo cual no es un síntoma
-        # de riesgo clínico»— y el turno salió con riesgo `none`.
-        #
-        # El costo asumido: si un paciente cuenta que le hicieron una inspección,
-        # se levanta una alerta de más. Es la dirección declarada en el criterio
-        # de severidad de este módulo, y en una llamada de seguimiento
-        # postoperatorio «inspección» dicha por el paciente es casi siempre esto.
-        "confusiones": ["inspeccion", "inspeccionado"],
+        # Aquí estuvo `"confusiones": ["inspeccion", "inspeccionado"]`. En la
+        # llamada 83 del proyecto original el paciente dijo «he tenido infección»
+        # tres veces y Vosk entregó «inspección» las tres —su modelo de lenguaje
+        # prefiriendo la palabra frecuente—, y el turno salió con riesgo `none`.
+        # Con AssemblyAI esa frase llega bien («He tenido infección.») y la
+        # confusión no apareció en ninguna de las 128 frases del barrido. Se
+        # retira: su costo era una alerta cada vez que un paciente contara que le
+        # hicieron una inspección, y ya no compra nada.
         "nota": "'materia' = pus en habla coloquial colombiana. Es el término "
                 "que más aparece y no estaba cubierto.",
     },

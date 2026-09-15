@@ -26,8 +26,8 @@ from __future__ import annotations
 import asyncio
 import json
 import urllib.parse
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import AsyncIterator
 
 import websockets
 
@@ -179,6 +179,15 @@ class Reconocedor:
         except websockets.ConnectionClosed as e:
             raise ErrorSTT(self.error or "se cayó la conexión con AssemblyAI") from e
 
+    async def forzar_fin_de_turno(self) -> None:
+        """Cierra el turno en curso sin esperar al silencio.
+
+        Lo usa el arnés de reconocimiento para que cada frase medida caiga en su
+        propio turno y no se mezcle con la siguiente.
+        """
+        if self._ws is not None:
+            await self._ws.send(json.dumps({"type": "ForceEndpoint"}))
+
     async def eventos(self) -> AsyncIterator[Turno]:
         """Los turnos según llegan. Termina cuando se cierra la sesión."""
         while True:
@@ -196,7 +205,7 @@ class Reconocedor:
             self._pendiente.clear()
             await self._ws.send(json.dumps({"type": "Terminate"}))
             await asyncio.wait_for(self._bomba, timeout=5)
-        except (websockets.ConnectionClosed, asyncio.TimeoutError, TypeError):
+        except (TimeoutError, websockets.ConnectionClosed, TypeError):
             pass
         finally:
             if self._bomba and not self._bomba.done():
