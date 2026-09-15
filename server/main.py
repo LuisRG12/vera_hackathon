@@ -1,9 +1,9 @@
 """Servidor de la llamada.
 
-Etapa 1: el oído. El navegador captura el micrófono, manda PCM por WebSocket, y
-este servidor lo reenvía a AssemblyAI y devuelve lo que va oyendo. Todavía no hay
-diálogo ni voz — solo se comprueba que el reconocimiento en español funciona y
-que los turnos cierran donde deben.
+El navegador captura el micrófono, manda PCM por WebSocket, y este servidor lo
+reenvía a AssemblyAI y devuelve lo que va oyendo. Cada cosa que llega del
+reconocedor pasa por el motor determinista **antes** de ir a ninguna otra parte:
+la alerta sale de aquí, sin modelo de por medio. Todavía no hay diálogo ni voz.
 
 **La clave de AssemblyAI no pasa por el navegador.** El audio da este rodeo justo
 para eso: el cliente habla con nosotros y nosotros con AssemblyAI.
@@ -11,16 +11,23 @@ para eso: el cliente habla con nosotros y nosotros con AssemblyAI.
 from __future__ import annotations
 
 import asyncio
+import json
+import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 
 from server.config import settings
+from server.seguridad.lexico import LEXICON
+from server.seguridad.vigilancia import Lectura, Vigilancia
 from server.voz.keyterms import CONTEXTO_CLINICO, KEYTERMS
-from server.voz.stt import ErrorSTT, crear_stt
+from server.voz.stt import ErrorSTT, Turno, crear_stt
 
-WEB = Path(__file__).resolve().parent.parent / "web"
+RAIZ = Path(__file__).resolve().parent.parent
+WEB = RAIZ / "web"
+REGISTRO = RAIZ / "registros" / "turnos.jsonl"
 
 app = FastAPI(title="Vera")
 
@@ -41,13 +48,40 @@ async def salud():
         "configurado": settings.stt_configurado,
         "idiomas": settings.stt_idiomas,
         "keyterms": len(KEYTERMS),
+        "lexico": len(LEXICON),
+        "registro_turnos": settings.registro_turnos,
     })
+
+
+def _senales(lectura: Lectura) -> list[dict]:
+    return [{"concepto": s.concepto, "severidad": s.severidad, "coincidencia": s.coincidencia}
+            for s in lectura.senales]
+
+
+def _anotar(llamada: str, t: Turno, lectura: Lectura) -> None:
+    """Deja el turno cerrado en el registro, si está encendido (ver config)."""
+    if not settings.registro_turnos:
+        return
+    REGISTRO.parent.mkdir(exist_ok=True)
+    fila = {
+        "llamada": llamada,
+        "hora": datetime.now().isoformat(timespec="seconds"),
+        "orden": t.orden,
+        "texto": t.texto,
+        "riesgo": lectura.riesgo,
+        "senales": _senales(lectura),
+        "stt": settings.stt_modelo,
+    }
+    with REGISTRO.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(fila, ensure_ascii=False) + "\n")
 
 
 @app.websocket("/ws/llamada")
 async def llamada(ws: WebSocket):
     await ws.accept()
     stt = crear_stt(keyterms=KEYTERMS, contexto=CONTEXTO_CLINICO)
+    vigilancia = Vigilancia()
+    llamada = uuid.uuid4().hex[:8]
 
     try:
         await stt.abrir()
@@ -88,6 +122,26 @@ async def llamada(ws: WebSocket):
                 continue
             nonlocal ultimo
             ultimo = asyncio.get_running_loop().time()
+
+            # El motor lee primero, y la alerta sale antes que el propio turno:
+            # en la pantalla —y mañana en el aviso al equipo— lo primero que
+            # aparece es la alarma, no la transcripción.
+            lectura = vigilancia.leer(t.texto, t.orden, t.cerrado)
+            for a in lectura.nuevas:
+                await ws.send_json({
+                    "type": "alerta",
+                    "concepto": a.senal.concepto,
+                    "severidad": a.senal.severidad,
+                    "accion": a.senal.accion,
+                    "coincidencia": a.senal.coincidencia,
+                    "texto": a.texto,
+                    "orden": a.orden,
+                    "en_parcial": a.en_parcial,
+                })
+            if lectura.respuesta:
+                await ws.send_json({"type": "respuesta", "texto": lectura.respuesta,
+                                    "redactado_por": "codigo"})
+
             await ws.send_json({
                 "type": "turno",
                 "texto": t.texto,
@@ -95,7 +149,11 @@ async def llamada(ws: WebSocket):
                 "orden": t.orden,
                 "idioma": t.idioma,
                 "confianza_idioma": t.confianza_idioma,
+                "riesgo": lectura.riesgo,
+                "senales": _senales(lectura),
             })
+            if t.cerrado:
+                _anotar(llamada, t, lectura)
         # Si el reconocedor se cayó por algo, que se vea en la pantalla y no
         # solo en el log: quien prueba la llamada no está mirando la consola.
         if stt.error:

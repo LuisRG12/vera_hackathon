@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Vera — etapa 1: el oído</title>
+<title>Vera — etapa 3: la red de seguridad</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 15px/1.6 system-ui, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1.2rem; }
@@ -16,22 +16,53 @@
   .turno { padding: .7rem 1rem; margin: .45rem 0; border-radius: .5rem;
            background: rgba(127,127,127,.12); }
   .meta { font-size: .75rem; color: #6b7280; margin-top: .25rem; font-style: normal; }
+
+  .alerta { padding: .75rem 1rem; margin: .6rem 0; border-radius: .5rem; border-left: 4px solid; }
+  .alerta.critical { border-color: #dc2626; background: rgba(220,38,38,.13); }
+  .alerta.high     { border-color: #ea580c; background: rgba(234,88,12,.12); }
+  .alerta .cab { font-weight: 600; letter-spacing: .01em; }
+  .alerta .resp { margin-top: .5rem; padding-top: .45rem; border-top: 1px solid rgba(127,127,127,.3); }
+
+  .chips { margin-top: .3rem; font-style: normal; }
+  .chip { display: inline-block; font-size: .72rem; padding: .05rem .5rem; margin: 0 .3rem .2rem 0;
+          border-radius: 1rem; border: 1px solid; }
+  .chip.critical { border-color: #dc2626; color: #dc2626; }
+  .chip.high     { border-color: #ea580c; color: #ea580c; }
+  .chip.moderate { border-color: #ca8a04; color: #ca8a04; }
 </style>
 
-<h1>Vera — etapa 1: el oído</h1>
-<p class="sub">Comprueba que AssemblyAI transcribe español colombiano y que los turnos cierran donde deben. Todavía no hay diálogo ni voz.</p>
+<h1>Vera — etapa 3: la red de seguridad</h1>
+<p class="sub">AssemblyAI oye y el motor determinista lee cada parcial. Ninguna alerta pasa por un modelo: todavía no hay ninguno conectado.</p>
 
 <button id="btn">Empezar a hablar</button>
 <div id="estado">Sin conectar.</div>
+<div id="alertas"></div>
 <div id="vivo">…</div>
 <div id="turnos"></div>
 
 <script>
 const btn = document.getElementById('btn');
 const estado = document.getElementById('estado');
+const alertas = document.getElementById('alertas');
 const vivo = document.getElementById('vivo');
 const turnos = document.getElementById('turnos');
 let ws, ctx, stream, t0, tParcial = 0;
+// Alertas que saltaron en un parcial, por turno: cuando ese turno cierre se
+// sabe cuánto se adelantó la alerta al cierre, que es lo que ganó leer parciales.
+let adelantadas = {};
+let ultimaCritica = null;
+
+const ACCION = { critical: 'EMERGENCIA', high: 'ESCALAR AL EQUIPO CLÍNICO' };
+// Los conceptos del léxico son claves sin tildes; en pantalla se leen como una
+// errata. Solo los que la necesitan: el resto se lee bien cambiando el guion bajo.
+const NOMBRES = {
+  infeccion: 'infección', dolor_toracico: 'dolor torácico', convulsion: 'convulsión',
+  perdida_conciencia: 'pérdida de conciencia', ideacion_suicida: 'ideación suicida',
+  signos_tvp: 'signos de trombosis', alteracion_mental: 'alteración mental',
+  vomito_persistente: 'vómito persistente', distension_abdominal: 'distensión abdominal',
+  animo_depresivo: 'ánimo depresivo', retencion: 'retención',
+};
+const nombre = c => NOMBRES[c] || c.replaceAll('_', ' ');
 
 const WORKLET = `
 class Captura extends AudioWorkletProcessor {
@@ -50,6 +81,33 @@ class Captura extends AudioWorkletProcessor {
 }
 registerProcessor('captura', Captura);`;
 
+function chips(senales) {
+  const d = document.createElement('div');
+  d.className = 'chips';
+  for (const s of senales || []) {
+    const c = document.createElement('span');
+    c.className = 'chip ' + s.severidad;
+    c.textContent = `${nombre(s.concepto)} · «${s.coincidencia}»`;
+    d.appendChild(c);
+  }
+  return d;
+}
+
+function mostrarAlerta(m) {
+  const d = document.createElement('div');
+  d.className = 'alerta ' + m.severidad;
+  d.innerHTML = '<div class="cab"></div><div class="por"></div><div class="meta"></div>';
+  d.querySelector('.cab').textContent = `${ACCION[m.severidad]} · ${nombre(m.concepto)}`;
+  d.querySelector('.por').textContent = `por «${m.coincidencia}» en «${m.texto}»`;
+  const meta = d.querySelector('.meta');
+  meta.textContent = `turno ${m.orden} · ` +
+    (m.en_parcial ? 'saltó mientras el paciente hablaba' : 'saltó al cerrar el turno') +
+    ' · decidido por el motor determinista, sin modelo';
+  if (m.en_parcial) (adelantadas[m.orden] ||= []).push({ meta, t: Date.now() });
+  if (m.severidad === 'critical') ultimaCritica = d;
+  alertas.prepend(d);
+}
+
 btn.onclick = async () => {
   if (ws) return parar();
   btn.textContent = 'Parar';
@@ -65,6 +123,9 @@ btn.onclick = async () => {
     return;
   }
 
+  alertas.textContent = '';
+  adelantadas = {};
+  ultimaCritica = null;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/llamada`);
   ws.binaryType = 'arraybuffer';
@@ -74,6 +135,14 @@ btn.onclick = async () => {
     if (m.type === 'error')    { estado.textContent = 'Error: ' + m.detalle; parar(); return; }
     if (m.type === 'inactiva') { estado.textContent = 'Conexión ' + m.detalle + '.'; parar(); return; }
     if (m.type === 'listo')    { estado.textContent = `Oyendo con ${m.stt}, modo ${m.modo}, a ${m.sample_rate} Hz.`; arrancarAudio(m.sample_rate); return; }
+    if (m.type === 'alerta')   { mostrarAlerta(m); return; }
+    if (m.type === 'respuesta' && ultimaCritica) {
+      const r = document.createElement('div');
+      r.className = 'resp';
+      r.textContent = `Vera responde — texto fijo, escrito por el código: «${m.texto}»`;
+      ultimaCritica.appendChild(r);
+      return;
+    }
     if (m.type !== 'turno') return;
 
     if (m.cerrado) {
@@ -81,16 +150,22 @@ btn.onclick = async () => {
       // en cerrar el turno desde que dejaste de hablar. Eso es lo que se siente
       // como que el agente te interrumpe o te hace esperar.
       const cierre = tParcial ? ((Date.now() - tParcial) / 1000).toFixed(2) + 's' : '—';
+      for (const a of adelantadas[m.orden] || []) {
+        a.meta.textContent += ` · ${((Date.now() - a.t) / 1000).toFixed(2)} s antes de cerrar el turno`;
+      }
+      delete adelantadas[m.orden];
       vivo.textContent = '…';
       tParcial = 0;
       const d = document.createElement('div');
       d.className = 'turno';
       const idioma = m.idioma ? ` · ${m.idioma} ${(m.confianza_idioma ?? 0).toFixed(2)}` : '';
-      d.innerHTML = `<div></div><div class="meta">turno ${m.orden} · cierre +${cierre} · t+${((Date.now()-t0)/1000).toFixed(1)}s${idioma}</div>`;
+      d.innerHTML = `<div></div><div class="meta">turno ${m.orden} · riesgo ${m.riesgo} · cierre +${cierre} · t+${((Date.now()-t0)/1000).toFixed(1)}s${idioma}</div>`;
       d.firstChild.textContent = m.texto;
+      d.appendChild(chips(m.senales));
       turnos.prepend(d);
     } else {
       vivo.textContent = m.texto;
+      vivo.appendChild(chips(m.senales));
       tParcial = Date.now();
     }
   };

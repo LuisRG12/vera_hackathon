@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     # olvidado cuesta igual que una conversación. Esto lo cierra solo.
     stt_inactividad_s: float = 45.0
 
+    # --- Red de seguridad ---
+    # Guarda cada turno cerrado —lo transcrito y lo que el motor vio— en
+    # `registros/turnos.jsonl`. Sirve para medir con habla real lo que el
+    # reconocedor le hace a las palabras del paciente, que es de donde salen las
+    # confusiones del léxico. Apagado por defecto: es la voz de un paciente.
+    registro_turnos: bool = False
+
     @property
     def stt_configurado(self) -> bool:
         return bool(self.assemblyai_api_key)

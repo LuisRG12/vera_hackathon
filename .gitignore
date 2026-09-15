@@ -14,6 +14,9 @@ __pycache__/
 # Audio generado en pruebas
 *.wav
 
+# Turnos transcritos de llamadas reales (REGISTRO_TURNOS): la voz de alguien
+registros/
+
 # Voces de Piper: artefactos de terceros con licencia propia, se descargan.
 voces/
 
