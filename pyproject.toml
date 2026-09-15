@@ -29,3 +29,6 @@ select = ["E", "F", "I", "UP", "B"]
 # El léxico es un diccionario de datos: sus entradas son frases de paciente y
 # partirlas por ancho de línea las volvería ilegibles para quien deba revisarlas.
 "server/seguridad/lexico.py" = ["E501"]
+# El prompt del juez es contenido, no código: partirlo por ancho de línea
+# cambiaría literalmente lo que el modelo lee.
+"server/seguridad/juez.py" = ["E501"]
