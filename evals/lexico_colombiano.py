@@ -1,0 +1,224 @@
+"""Cobertura del léxico colombiano en la capa determinista (0 tokens).
+
+  uv run python -m evals.lexico_colombiano
+
+Vera atiende pacientes colombianos, y un paciente no dice «presento secreción
+purulenta»: dice «está botando materia». Cada llamada real de la etapa de pruebas
+descubrió dos o tres formas de decir las cosas que ninguna regla cubría —«un poco
+más fuerte», «sin poder respirar», «botando materia»—, y cada una era un
+escalamiento que no ocurría.
+
+Este arnés mide las dos direcciones, porque ampliar vocabulario es justo lo que
+introduce falsos positivos:
+
+  - **POSITIVOS**: habla real que DEBE detectarse. Son compuerta.
+  - **NEGATIVOS**: frases parecidas que NO deben disparar. También son compuerta:
+    un agente que escala con todo se vuelve ruido y el equipo clínico lo apaga.
+"""
+from __future__ import annotations
+
+import sys
+
+from server.seguridad.reglas import (
+    SEVERITY_ORDER,
+    detect_red_flags,
+    max_severity,
+    resumen_lexico,
+)
+
+PASS, FAIL = "  [OK]", "  [FALLA]"
+
+# (frase del paciente, concepto que debe aparecer, severidad mínima)
+POSITIVOS = [
+    # --- respiración ---
+    ("no me entra el aire", "dificultad_respiratoria", "critical"),
+    ("me quedo sin aire con solo caminar", "dificultad_respiratoria", "critical"),
+    ("me fatigo al caminar hasta el baño", "dificultad_respiratoria", "critical"),
+    ("siento que me asfixio", "dificultad_respiratoria", "critical"),
+    ("me agito mucho al caminar", "dificultad_respiratoria", "critical"),
+    ("me cuesta trabajo respirar", "dificultad_respiratoria", "critical"),
+
+    # --- pecho ---
+    ("siento el pecho apretado", "dolor_toracico", "critical"),
+    ("tengo un peso en el pecho", "dolor_toracico", "critical"),
+    ("una punzada en el pecho", "dolor_toracico", "critical"),
+
+    # --- desmayo (colombianismos) ---
+    ("me dio un yeyo en el baño", "perdida_conciencia", "critical"),
+    ("me dio la pálida y me senté", "perdida_conciencia", "critical"),
+    ("le dio un patatús", "perdida_conciencia", "critical"),
+    ("vi todo negro", "perdida_conciencia", "critical"),
+    ("se me fue la vista un momento", "perdida_conciencia", "critical"),
+    ("perdí el sentido", "perdida_conciencia", "critical"),
+
+    # --- fiebre (incluye 'quebranto' y 'destemplado') ---
+    ("estoy destemplada desde anoche", "fiebre", "high"),
+    ("ando con quebranto", "fiebre", "high"),
+    ("estoy que ardo", "fiebre", "high"),
+    ("me subió la temperatura", "fiebre", "high"),
+    ("ando con escalofríos", "fiebre", "high"),
+    ("tengo 39.5 grados", "fiebre", "high"),
+    ("estoy hirviendo", "fiebre", "high"),
+    ("tengo calentura", "fiebre", "high"),
+
+    # --- infección ('materia' es el término clave) ---
+    ("está botando materia", "infeccion", "high"),
+    ("le sale materia por la herida", "infeccion", "high"),
+    ("la herida huele maluco", "infeccion", "high"),
+    ("sale un líquido amarillo espeso", "infeccion", "high"),
+    ("se me puso roja la herida", "infeccion", "high"),
+    ("la herida está caliente", "infeccion", "high"),
+    ("creo que se me infectó", "infeccion", "high"),
+    # Lo que el RECONOCEDOR pone en boca del paciente. En la llamada 83 dijo
+    # «he tenido infección» tres veces seguidas y Vosk entregó «inspección» las
+    # tres; el juez lo leyó literal y el turno salió con riesgo `none`. Se
+    # declara en `lexico.confusiones`, no entre los términos del paciente.
+    ("he tenido inspección", "infeccion", "high"),
+    ("sí yo diría que inspección", "infeccion", "high"),
+    # La contraparte de la negación en imperfecto: una adversativa con
+    # afirmación la cancela. La afirmación es elíptica —«sí tengo», sin repetir
+    # el síntoma—, así que no basta con buscar otra ocurrencia del término.
+    # Antes de reconocer el imperfecto esto salía bien por accidente.
+    ("ayer no tenía fiebre pero hoy sí tengo", "fiebre", "high"),
+    ("no tenía fiebre pero ahora sí", "fiebre", "high"),
+
+    # --- sangrado ('cuajarones' = coágulos) ---
+    ("estoy botando cuajarones", "sangrado_masivo", "high"),
+    ("estoy chorreando sangre", "sangrado_masivo", "high"),
+    ("sangra harto", "sangrado_masivo", "high"),
+    ("ya empapé el apósito", "sangrado_masivo", "high"),
+    ("no para de sangrar", "sangrado_masivo", "high"),
+
+    # --- dehiscencia ---
+    ("se me soltó un punto", "dehiscencia", "high"),
+    ("se me descosió la herida", "dehiscencia", "high"),
+    ("se reventaron los puntos", "dehiscencia", "high"),
+
+    # --- empeoramiento (el hallazgo de la llamada real) ---
+    ("hoy está un poco más fuerte", "empeoramiento", "moderate"),
+    ("no se me quita", "empeoramiento", "moderate"),
+    ("cada vez más", "empeoramiento", "moderate"),
+    ("en vez de mejorar va peor", "empeoramiento", "moderate"),
+    ("no me ha bajado", "empeoramiento", "moderate"),
+    ("está peor que anoche", "empeoramiento", "moderate"),
+    ("el dolor no cede", "empeoramiento", "moderate"),
+
+    # --- dolor intenso (intensificadores colombianos) ---
+    ("tengo un dolor tenaz", "dolor_intenso", "moderate"),
+    ("me duele durísimo", "dolor_intenso", "moderate"),
+    ("me duele un resto", "dolor_intenso", "moderate"),
+    ("no aguanto el dolor", "dolor_intenso", "moderate"),
+    ("es un dolor berraco", "dolor_intenso", "moderate"),
+
+    # --- vómito ('trasbocar') ---
+    ("estoy trasbocando todo", "vomito_persistente", "moderate"),
+    ("devuelvo todo lo que como", "vomito_persistente", "moderate"),
+    ("tengo el estómago revuelto", "vomito_persistente", "moderate"),
+    ("tengo muchas náuseas", "vomito_persistente", "moderate"),
+
+    # --- ictericia ---
+    ("tengo los ojos amarillos", "ictericia", "moderate"),
+    ("la orina como coca cola", "ictericia", "moderate"),
+    ("estoy amarilla", "ictericia", "moderate"),
+
+    # --- malestar general ---
+    ("me siento muy maluca", "estado_general_malo", "moderate"),
+    ("estoy descompuesto", "estado_general_malo", "moderate"),
+    ("me siento aporreado", "estado_general_malo", "moderate"),
+    ("no tengo fuerzas", "estado_general_malo", "moderate"),
+
+    # --- retención ('obrar' = defecar) ---
+    ("no he podido obrar", "retencion", "moderate"),
+    ("no he expulsado gases", "retencion", "moderate"),
+    ("no puedo orinar", "retencion", "moderate"),
+    ("me arde al orinar", "retencion", "moderate"),
+
+    # --- sin tildes: el STT y quien teclea las omiten ---
+    ("no puedo respirar", "dificultad_respiratoria", "critical"),
+    ("me desmaye esta manana", "perdida_conciencia", "critical"),
+    ("tengo una infeccion en la herida", "infeccion", "high"),
+    ("vision borrosa desde ayer", "preeclampsia", "high"),
+]
+
+# Frases que NO deben disparar nada. Un agente que escala con todo es ruido.
+NEGATIVOS = [
+    # La contrapartida de la confusión del reconocedor: la negación tiene que
+    # seguir funcionando encima de ella. Si «inspección» disparara infección aun
+    # negada, la alerta de más dejaría de ser un costo asumido y sería ruido.
+    ("no he tenido ninguna inspección", "confusión del STT, pero negada"),
+    # El imperfecto es la forma más común de negar hablando, y no se reconocía:
+    # «no tenía fiebre» entraba como fiebre REPORTADA y la llamada escalaba. Se
+    # vio por micrófono — el paciente dijo que no y Vera le contestó que «ha
+    # presentado fiebre» y que necesitaba atención inmediata.
+    ("no tenía fiebre", "negación en imperfecto"),
+    ("no sentía dolor en la herida", "negación en imperfecto, otro verbo"),
+    ("no veía sangrado", "negación en imperfecto, otro verbo"),
+    ("todo bien, muchas gracias", "saludo normal"),
+    ("me duele un poquito la herida", "molestia leve esperable"),
+    ("el dolor va cediendo cada día", "mejoría, no empeoramiento"),
+    ("ya no me duele nada", "negación explícita"),
+    ("me siento mejor que ayer", "mejoría — no confundir con 'peor que ayer'"),
+    ("no tengo fiebre ni escalofríos", "negación de fiebre"),
+    ("la herida está limpia y seca", "estado normal de la herida"),
+    ("no he vomitado nada", "negación de vómito"),
+    ("no hay sangrado", "negación de sangrado"),
+    ("ya pude obrar normal", "función recuperada — no es retención"),
+    ("puedo respirar bien", "sin disnea"),
+    ("estoy caminando todos los días sin problema", "actividad normal"),
+    ("me tomé las pastas a la hora", "adherencia a la medicación"),
+    ("la cicatriz se ve bien", "evolución normal"),
+    ("¿cuándo puedo volver a manejar?", "pregunta administrativa"),
+    ("dormí bien anoche", "sin síntomas"),
+]
+
+
+def _ge(actual: str, minimo: str) -> bool:
+    return SEVERITY_ORDER.index(actual) >= SEVERITY_ORDER.index(minimo)
+
+
+def main() -> int:
+    fallos_pos: list[str] = []
+    fallos_neg: list[str] = []
+
+    print(f"== POSITIVOS: habla colombiana real ({len(POSITIVOS)} casos) ==")
+    for frase, concepto, sev_min in POSITIVOS:
+        flags = detect_red_flags(frase)
+        nombres = {f.name for f in flags}
+        sev = max_severity(flags)
+        ok = concepto in nombres and _ge(sev, sev_min)
+        if not ok:
+            print(f"{FAIL} esperaba {concepto}/{sev_min}, obtuvo {sorted(nombres) or 'nada'}"
+                  f"/{sev} | «{frase}»")
+            fallos_pos.append(frase)
+
+    print(f"       {len(POSITIVOS) - len(fallos_pos)}/{len(POSITIVOS)} detectados")
+
+    print(f"\n== NEGATIVOS: no deben disparar ({len(NEGATIVOS)} casos) ==")
+    for frase, motivo in NEGATIVOS:
+        flags = detect_red_flags(frase)
+        if flags:
+            print(f"{FAIL} disparó {sorted(f.name for f in flags)} | «{frase}» ({motivo})")
+            fallos_neg.append(frase)
+
+    print(f"       {len(NEGATIVOS) - len(fallos_neg)}/{len(NEGATIVOS)} silenciosos")
+
+    print("\n== Léxico cargado ==")
+    total_terminos = 0
+    for c in resumen_lexico():
+        total_terminos += len(c["terminos"])
+        print(f"  {c['severidad']:9s} {c['concepto']:26s} "
+              f"{len(c['terminos']):3d} términos + {c['patrones']} patrones")
+    print(f"  {'':9s} {'TOTAL':26s} {total_terminos:3d} términos")
+
+    total = len(POSITIVOS) + len(NEGATIVOS)
+    ok = total - len(fallos_pos) - len(fallos_neg)
+    print(f"\nRESULTADO: {ok}/{total} comprobaciones de léxico.")
+    if fallos_pos:
+        print("*** Habla real que NO se detecta: cada una es un escalamiento perdido. ***")
+    if fallos_neg:
+        print("*** Falsos positivos: el ruido apaga la confianza en las alertas. ***")
+    return 0 if ok == total else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

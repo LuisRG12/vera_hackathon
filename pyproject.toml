@@ -26,3 +26,6 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 "server/main.py" = ["B008"]
+# El léxico es un diccionario de datos: sus entradas son frases de paciente y
+# partirlas por ancho de línea las volvería ilegibles para quien deba revisarlas.
+"server/seguridad/lexico.py" = ["E501"]
