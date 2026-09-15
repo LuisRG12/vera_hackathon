@@ -83,9 +83,13 @@ def _ms(desde: float) -> int:
 class Conversacion:
     """Una por llamada: lleva lo poco que un turno necesita del anterior."""
 
-    def __init__(self, llm: StructuredLLM):
+    def __init__(self, llm: StructuredLLM, apertura: str | None = None):
         self.llm = llm
         self.historial: list[dict] = []
+        # Lo que Vera ya dijo al contestar, si lo dijo. El modelo no lo escribió
+        # —es texto fijo—, así que sin esto no sabe que ya se presentó y vuelve a
+        # saludar o a preguntar lo mismo.
+        self.apertura = apertura
         # Lo que el juez ve del turno anterior. Solo si ese turno NO escaló: el
         # turno anterior está para completar una frase que el reconocedor partió
         # —«me duele el brazo, ¿cierto?» + «se me pasa al lado izquierdo»—, y lo
@@ -128,6 +132,8 @@ class Conversacion:
 
         objetivo = OBJETIVO_ALARMA if severidad == "high" else OBJETIVO_NORMAL
         user = f"OBJETIVO DE ESTE TURNO: {objetivo}\n\nPACIENTE: {texto}\n\n{SIN_CONTEXTO}"
+        if self.apertura and not self.historial:
+            user = f"VERA YA DIJO AL CONTESTAR LA LLAMADA: «{self.apertura}»\n\n{user}"
         partidor = SentenceSplitter()
         dichas: list[str] = []
         obj, uso_resp = None, {}

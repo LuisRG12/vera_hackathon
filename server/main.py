@@ -1,40 +1,40 @@
-"""Servidor de la llamada.
+"""Servidor de Vera.
 
-Dos entradas, una por cada cosa que ya funciona:
+Dos entradas:
 
-- `/ws/llamada`: el navegador captura el micrófono, manda PCM, y este servidor lo
-  reenvía a AssemblyAI y devuelve lo que va oyendo. Cada cosa que llega del
-  reconocedor pasa por el motor determinista **antes** de ir a ninguna otra
-  parte: la alerta sale de aquí, sin modelo de por medio.
-- `/ws/texto`: la conversación con Vera por texto —reglas, juez y respuesta—,
-  para probar la cabeza antes de juntarla con el oído y la voz.
+- `/ws/llamada`: la llamada por voz. El navegador manda el micrófono, el servidor
+  lo reenvía a AssemblyAI, el motor determinista lee cada cosa que se oye antes
+  de que la vea ningún modelo, y Vera contesta con su voz. Ver `server/voz/sesion.py`.
+- `/ws/texto`: la misma conversación por texto —reglas, juez y respuesta—, para
+  probar la cabeza sin micrófono.
 
-**La clave de AssemblyAI no pasa por el navegador.** El audio da este rodeo justo
-para eso: el cliente habla con nosotros y nosotros con AssemblyAI.
+**Las claves no pasan por el navegador.** El audio da este rodeo justo para eso:
+el cliente habla con nosotros y nosotros con AssemblyAI y con Cartesia.
 """
 from __future__ import annotations
 
-import asyncio
-import json
-import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 
 from server.config import settings
-from server.dialogo.turno import Conversacion, TurnoVera
+from server.dialogo.prompts import DEGRADADO, DEGRADADO_CON_ALARMA, SALUDO, SIN_RESPUESTA
+from server.dialogo.turno import Conversacion
 from server.modelo.llm import StructuredLLM
 from server.seguridad.lexico import LEXICON
-from server.seguridad.vigilancia import Lectura, Vigilancia
-from server.voz.keyterms import CONTEXTO_CLINICO, KEYTERMS
-from server.voz.stt import ErrorSTT, Turno, crear_stt
+from server.seguridad.respuestas import ACOMPANAR, EMERGENCIA
+from server.voz.keyterms import KEYTERMS
+from server.voz.sesion import SesionLlamada, turno_json
+from server.voz.tts import FrasesFijas
 
-RAIZ = Path(__file__).resolve().parent.parent
-WEB = RAIZ / "web"
-REGISTRO = RAIZ / "registros" / "turnos.jsonl"
+WEB = Path(__file__).resolve().parent.parent / "web"
+
+# Lo que Vera dice escrito por el código. Se sintetiza al arrancar y queda en
+# disco: suena al instante y suena aunque Cartesia se caiga, que es justo cuando
+# más falta hacen la emergencia y los respaldos.
+FRASES_FIJAS = [SALUDO, EMERGENCIA, ACOMPANAR, DEGRADADO, DEGRADADO_CON_ALARMA, SIN_RESPUESTA]
 
 
 @asynccontextmanager
@@ -43,6 +43,9 @@ async def ciclo(app: FastAPI):
     # entre turnos y entre llamadas. Medido, abrirla de nuevo en cada petición
     # costaba medio segundo hasta la primera frase.
     app.state.llm = StructuredLLM()
+    app.state.fijas = FrasesFijas()
+    app.state.fijas_listas = await app.state.fijas.preparar(FRASES_FIJAS) \
+        if settings.tts_configurado else {"sin_clave": len(FRASES_FIJAS)}
     yield
     await app.state.llm.aclose()
 
@@ -68,29 +71,20 @@ async def salud():
         "keyterms": len(KEYTERMS),
         "lexico": len(LEXICON),
         "llm": settings.llm_modelo,
+        "voz": settings.tts_voz if settings.tts_configurado else None,
+        "frases_fijas": app.state.fijas_listas,
         "registro_turnos": settings.registro_turnos,
     })
 
 
-def _turno_json(t: TurnoVera) -> dict:
-    return {
-        "type": "turno",
-        "utterance": t.utterance,
-        "riesgo": t.decision.risk,
-        "accion": t.decision.action,
-        "fuente": t.decision.source,
-        "motivo": t.decision.rationale,
-        "reglas": t.decision.rule_flags,
-        "redactado_por": t.redactado_por,
-        "marca": t.marca,
-        "latencia": t.latencia_ms,
-        "tokens": t.usage,
-    }
+@app.websocket("/ws/llamada")
+async def llamada(ws: WebSocket):
+    await SesionLlamada(ws, ws.app.state).atender()
 
 
 @app.websocket("/ws/texto")
 async def texto(ws: WebSocket):
-    """Una conversación por conexión, como lo será cada llamada."""
+    """Una conversación por conexión, como lo es cada llamada."""
     await ws.accept()
     conversacion = Conversacion(ws.app.state.llm)
     try:
@@ -103,147 +97,6 @@ async def texto(ws: WebSocket):
                 if tipo == "speak":
                     await ws.send_json({"type": "speak", "texto": dato})
                 else:
-                    await ws.send_json(_turno_json(dato))
+                    await ws.send_json({"type": "turno", **turno_json(dato)})
     except WebSocketDisconnect:
         return
-
-
-def _senales(lectura: Lectura) -> list[dict]:
-    return [{"concepto": s.concepto, "severidad": s.severidad, "coincidencia": s.coincidencia}
-            for s in lectura.senales]
-
-
-def _anotar(llamada: str, t: Turno, lectura: Lectura, vigilancia: Vigilancia) -> None:
-    """Deja el turno cerrado en el registro, si está encendido (ver config).
-
-    Con las alertas que saltaron durante el turno: si saltó en un parcial y el
-    turno cerrado lo reescribió, el texto final ya no la explica, y sin esto el
-    registro diría que en ese turno no pasó nada.
-    """
-    if not settings.registro_turnos:
-        return
-    REGISTRO.parent.mkdir(exist_ok=True)
-    fila = {
-        "llamada": llamada,
-        "hora": datetime.now().isoformat(timespec="seconds"),
-        "orden": t.orden,
-        "texto": t.texto,
-        "riesgo": lectura.riesgo,
-        "senales": _senales(lectura),
-        "alertas": [{"concepto": a.senal.concepto, "coincidencia": a.senal.coincidencia,
-                     "texto": a.texto, "en_parcial": a.en_parcial}
-                    for a in vigilancia.alertas_del_turno(t.orden)],
-        "stt": settings.stt_modelo,
-    }
-    with REGISTRO.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(fila, ensure_ascii=False) + "\n")
-
-
-@app.websocket("/ws/llamada")
-async def llamada(ws: WebSocket):
-    await ws.accept()
-    stt = crear_stt(keyterms=KEYTERMS, contexto=CONTEXTO_CLINICO)
-    vigilancia = Vigilancia()
-    llamada = uuid.uuid4().hex[:8]
-
-    try:
-        await stt.abrir()
-    except ErrorSTT as e:
-        await ws.send_json({"type": "error", "detalle": str(e)})
-        await ws.close()
-        return
-
-    await ws.send_json({
-        "type": "listo",
-        "stt": stt.nombre,
-        "modo": settings.stt_modo,
-        "sample_rate": settings.stt_sample_rate,
-    })
-
-    # AssemblyAI factura por tiempo de conexión abierta, no por audio enviado:
-    # un socket olvidado cuesta lo mismo que una conversación. Este reloj lo
-    # cierra si nadie dice nada. Cuando exista el diálogo habrá que revisarlo,
-    # porque entonces el silencio del paciente mientras habla el agente es parte
-    # normal de la llamada.
-    ultimo = asyncio.get_running_loop().time()
-
-    async def del_navegador_a_assemblyai():
-        # Colgar es el final normal de una llamada. Se atrapa aquí y no fuera
-        # porque la excepción vive dentro de la tarea: si se deja escapar,
-        # asyncio la guarda sin que nadie la recoja y ensucia el log con un
-        # error que no lo es.
-        try:
-            while True:
-                pcm = await ws.receive_bytes()
-                await stt.enviar(pcm)
-        except (WebSocketDisconnect, ErrorSTT, RuntimeError):
-            return
-
-    async def de_assemblyai_al_navegador():
-        async for t in stt.eventos():
-            if t.vacio:
-                continue
-            nonlocal ultimo
-            ultimo = asyncio.get_running_loop().time()
-
-            # El motor lee primero, y la alerta sale antes que el propio turno:
-            # en la pantalla —y mañana en el aviso al equipo— lo primero que
-            # aparece es la alarma, no la transcripción.
-            lectura = vigilancia.leer(t.texto, t.orden, t.cerrado)
-            for a in lectura.nuevas:
-                await ws.send_json({
-                    "type": "alerta",
-                    "concepto": a.senal.concepto,
-                    "severidad": a.senal.severidad,
-                    "accion": a.senal.accion,
-                    "coincidencia": a.senal.coincidencia,
-                    "texto": a.texto,
-                    "orden": a.orden,
-                    "en_parcial": a.en_parcial,
-                })
-            if lectura.respuesta:
-                await ws.send_json({"type": "respuesta", "texto": lectura.respuesta,
-                                    "redactado_por": "codigo"})
-
-            await ws.send_json({
-                "type": "turno",
-                "texto": t.texto,
-                "cerrado": t.cerrado,
-                "orden": t.orden,
-                "idioma": t.idioma,
-                "confianza_idioma": t.confianza_idioma,
-                "riesgo": lectura.riesgo,
-                "senales": _senales(lectura),
-            })
-            if t.cerrado:
-                _anotar(llamada, t, lectura, vigilancia)
-        # Si el reconocedor se cayó por algo, que se vea en la pantalla y no
-        # solo en el log: quien prueba la llamada no está mirando la consola.
-        if stt.error:
-            await ws.send_json({"type": "error", "detalle": stt.error})
-
-    async def vigilar_inactividad():
-        while True:
-            await asyncio.sleep(2)
-            quieto = asyncio.get_running_loop().time() - ultimo
-            if quieto >= settings.stt_inactividad_s:
-                await ws.send_json({
-                    "type": "inactiva",
-                    "detalle": f"cerrada tras {int(quieto)}s sin voz, para no gastar crédito",
-                })
-                return
-
-    subida = asyncio.create_task(del_navegador_a_assemblyai())
-    bajada = asyncio.create_task(de_assemblyai_al_navegador())
-    reloj = asyncio.create_task(vigilar_inactividad())
-    try:
-        # La primera que termine manda: si el navegador cuelga no tiene sentido
-        # seguir esperando turnos, y si AssemblyAI cierra no hay a quién mandarle
-        # el audio.
-        await asyncio.wait({subida, bajada, reloj}, return_when=asyncio.FIRST_COMPLETED)
-    except WebSocketDisconnect:
-        pass
-    finally:
-        for t in (subida, bajada, reloj):
-            t.cancel()
-        await stt.cerrar()

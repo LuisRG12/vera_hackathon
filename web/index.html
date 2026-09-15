@@ -35,7 +35,7 @@
   form { display: flex; gap: .5rem; margin: .8rem 0; }
   input { flex: 1; font: inherit; padding: .6rem .8rem; border-radius: .5rem;
           border: 1px solid #9ca3af; background: transparent; color: inherit; }
-  #chat { display: flex; flex-direction: column; gap: .5rem; }
+  #chat, #llamada { display: flex; flex-direction: column; gap: .5rem; }
   .yo, .vera { padding: .6rem .9rem; border-radius: .6rem; max-width: 85%; }
   .yo { align-self: flex-end; background: rgba(59,130,246,.15); }
   .vera { align-self: flex-start; background: rgba(127,127,127,.12); }
@@ -44,7 +44,7 @@
 </style>
 
 <h1>Vera</h1>
-<p class="sub">En construcción. Por texto se prueba la cabeza: reglas, juez y respuesta de Claude. Por voz, el oído y la red de seguridad.</p>
+<p class="sub">En construcción. Por texto se prueba la cabeza: reglas, juez y respuesta de Claude. Por voz, la llamada completa.</p>
 
 <h2>Por texto</h2>
 <p class="sub">Escriba como si fuera el paciente. Vera responde con Claude Haiku, y las reglas y el juez deciden el riesgo en paralelo.</p>
@@ -52,25 +52,28 @@
 <div id="chat"></div>
 
 <h2>Por voz</h2>
-<p class="sub">AssemblyAI oye y el motor determinista lee cada parcial. Aquí ninguna alerta pasa por un modelo.</p>
+<p class="sub">Una llamada con Vera: AssemblyAI oye, el motor determinista lee cada parcial antes que ningún modelo, Claude responde y Cartesia pone la voz. <strong>Por ahora, con audífonos</strong>: todavía no hay filtro de eco, y con parlantes el micrófono oiría a Vera.</p>
 
-<button id="btn">Empezar a hablar</button>
+<button id="btn">Llamar</button>
 <div id="estado">Sin conectar.</div>
 <div id="alertas"></div>
 <div id="vivo">…</div>
-<div id="turnos"></div>
+<div id="llamada"></div>
 
 <script>
 const btn = document.getElementById('btn');
 const estado = document.getElementById('estado');
 const alertas = document.getElementById('alertas');
 const vivo = document.getElementById('vivo');
-const turnos = document.getElementById('turnos');
-let ws, ctx, stream, t0, tParcial = 0;
+const llamada = document.getElementById('llamada');
+let ws, ctx, ctxVoz, stream, t0, tParcial = 0;
 // Alertas que saltaron en un parcial, por turno: cuando ese turno cierre se
 // sabe cuánto se adelantó la alerta al cierre, que es lo que ganó leer parciales.
 let adelantadas = {};
-let ultimaCritica = null;
+// Reproducción de Vera: los trozos se encadenan uno tras otro sin huecos, y cada
+// uno sabe de qué turno es. Al interrumpir se descarta todo lo de ese turno.
+let proximo = 0, fuentes = new Set(), callado = 0, sonandoAhora = false;
+let lineaVera = null;
 
 const ACCION = { critical: 'EMERGENCIA', high: 'ESCALAR AL EQUIPO CLÍNICO' };
 // Los conceptos del léxico son claves sin tildes; en pantalla se leen como una
@@ -84,6 +87,8 @@ const NOMBRES = {
   dolor_brazo_izquierdo: 'dolor en el brazo izquierdo',
 };
 const nombre = c => NOMBRES[c] || c.replaceAll('_', ' ');
+const ACCION_TEXTO = { continue: 'seguir', advise: 'aconsejar', escalate: 'escalar al equipo', emergency: 'emergencia' };
+const FUENTE = { rules: 'las reglas', llm: 'el juez', both: 'reglas y juez', none: '—' };
 
 const WORKLET = `
 class Captura extends AudioWorkletProcessor {
@@ -125,14 +130,73 @@ function mostrarAlerta(m) {
     (m.en_parcial ? 'saltó mientras el paciente hablaba' : 'saltó al cerrar el turno') +
     ' · decidido por el motor determinista, sin modelo';
   if (m.en_parcial) (adelantadas[m.orden] ||= []).push({ meta, t: Date.now() });
-  if (m.severidad === 'critical') ultimaCritica = d;
   alertas.prepend(d);
 }
 
+function linea(clase, texto) {
+  const d = document.createElement('div');
+  d.className = clase;
+  d.textContent = texto;
+  llamada.appendChild(d);
+  d.scrollIntoView({ block: 'nearest' });
+  return d;
+}
+
+function nota(d, texto) {
+  const m = document.createElement('div');
+  m.className = 'meta';
+  m.textContent = texto;
+  d.appendChild(m);
+  return m;
+}
+
+// ------------------------------------------------------------ la voz de Vera
+function avisarSonando(v) {
+  // El servidor solo sabe cuándo terminó de mandar el audio, no cuándo terminó
+  // de sonar. Se lo dice el navegador: mientras Vera suena no hay silencio que
+  // contar.
+  if (v === sonandoAhora) return;
+  sonandoAhora = v;
+  if (ws?.readyState === 1) ws.send(JSON.stringify({ type: 'sonando', valor: v }));
+}
+
+function reproducir(buf) {
+  const n = new DataView(buf).getUint32(0, true);
+  if (n <= callado || !ctxVoz) return;
+  const pcm = new Int16Array(buf, 4, Math.floor((buf.byteLength - 4) / 2));
+  const f = new Float32Array(pcm.length);
+  for (let i = 0; i < pcm.length; i++) f[i] = pcm[i] / 32768;
+  const trozo = ctxVoz.createBuffer(1, f.length, ctxVoz.sampleRate);
+  trozo.copyToChannel(f, 0);
+  const src = ctxVoz.createBufferSource();
+  src.buffer = trozo;
+  src.connect(ctxVoz.destination);
+  const inicio = Math.max(proximo, ctxVoz.currentTime + 0.03);
+  src.start(inicio);
+  proximo = inicio + trozo.duration;
+  fuentes.add(src);
+  avisarSonando(true);
+  src.onended = () => { fuentes.delete(src); if (!fuentes.size) avisarSonando(false); };
+}
+
+function callar(hasta) {
+  callado = Math.max(callado, hasta);
+  for (const s of fuentes) { try { s.stop(); } catch {} }
+  fuentes.clear();
+  proximo = 0;
+  avisarSonando(false);
+  if (lineaVera) { nota(lineaVera, '(interrumpida)'); lineaVera = null; }
+}
+
+// ------------------------------------------------------------ la llamada
 btn.onclick = async () => {
   if (ws) return parar();
-  btn.textContent = 'Parar';
+  btn.textContent = 'Colgar';
   estado.textContent = 'Pidiendo micrófono…';
+  // El contexto de reproducción se crea aquí, dentro del clic: los navegadores
+  // no dejan sonar audio que no empezó con un gesto de quien usa la página.
+  ctxVoz = new AudioContext({ sampleRate: 24000 });
+  ctxVoz.resume();
 
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -140,36 +204,55 @@ btn.onclick = async () => {
     });
   } catch (e) {
     estado.textContent = 'No se pudo abrir el micrófono: ' + e.message;
-    btn.textContent = 'Empezar a hablar';
+    btn.textContent = 'Llamar';
     return;
   }
 
   alertas.textContent = '';
+  llamada.textContent = '';
   adelantadas = {};
-  ultimaCritica = null;
+  callado = 0; proximo = 0; lineaVera = null;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/llamada`);
   ws.binaryType = 'arraybuffer';
 
   ws.onmessage = ev => {
+    if (ev.data instanceof ArrayBuffer) { reproducir(ev.data); return; }
     const m = JSON.parse(ev.data);
     if (m.type === 'error')    { estado.textContent = 'Error: ' + m.detalle; parar(); return; }
-    if (m.type === 'inactiva') { estado.textContent = 'Conexión ' + m.detalle + '.'; parar(); return; }
-    if (m.type === 'listo')    { estado.textContent = `Oyendo con ${m.stt}, modo ${m.modo}, a ${m.sample_rate} Hz.`; arrancarAudio(m.sample_rate); return; }
-    if (m.type === 'alerta')   { mostrarAlerta(m); return; }
-    if (m.type === 'respuesta' && ultimaCritica) {
-      const r = document.createElement('div');
-      r.className = 'resp';
-      r.textContent = `Vera responde — texto fijo, escrito por el código: «${m.texto}»`;
-      ultimaCritica.appendChild(r);
+    if (m.type === 'inactiva') { estado.textContent = 'Llamada ' + m.detalle + '.'; parar(); return; }
+    if (m.type === 'aviso')    { estado.textContent = 'Aviso: ' + m.detalle; return; }
+    if (m.type === 'listo') {
+      estado.textContent = `Oyendo con ${m.stt} (${m.modo}) · piensa ${m.llm} · ` +
+        (m.voz_sample_rate ? `habla con Cartesia a ${m.voz_sample_rate} Hz` : 'sin voz');
+      arrancarAudio(m.sample_rate);
       return;
     }
-    if (m.type !== 'turno') return;
+    if (m.type === 'alerta') { mostrarAlerta(m); return; }
+    if (m.type === 'callar') { callar(m.hasta); return; }
+    if (m.type === 'frase') {
+      // Cada frase llega antes que su audio: se ve en cuanto existe.
+      if (!lineaVera) lineaVera = linea('vera', m.texto);
+      else lineaVera.firstChild.textContent += ' ' + m.texto;
+      lineaVera.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (m.type === 'vera') {
+      const d = lineaVera || linea('vera', m.utterance);
+      d.classList.add(m.riesgo);
+      const l = m.latencia || {};
+      nota(d, `riesgo ${m.riesgo} · ${ACCION_TEXTO[m.accion]} · decidió ${FUENTE[m.fuente]}` +
+        ` · escrito por ${m.redactado_por === 'codigo' ? 'el código' : 'el modelo'}` +
+        (m.marca !== 'ok' ? ` (${m.marca})` : '') +
+        ` · primera frase ${l.primera_frase_ms ?? '—'} ms`);
+      lineaVera = null;
+      return;
+    }
+    if (m.type !== 'oido') return;
 
     if (m.cerrado) {
       // Lo que interesa medir no es cuánto llevas conectado sino cuánto tardó
-      // en cerrar el turno desde que dejaste de hablar. Eso es lo que se siente
-      // como que el agente te interrumpe o te hace esperar.
+      // en cerrar el turno desde que dejaste de hablar.
       const cierre = tParcial ? ((Date.now() - tParcial) / 1000).toFixed(2) + 's' : '—';
       for (const a of adelantadas[m.orden] || []) {
         a.meta.textContent += ` · ${((Date.now() - a.t) / 1000).toFixed(2)} s antes de cerrar el turno`;
@@ -177,20 +260,17 @@ btn.onclick = async () => {
       delete adelantadas[m.orden];
       vivo.textContent = '…';
       tParcial = 0;
-      const d = document.createElement('div');
-      d.className = 'turno';
-      const idioma = m.idioma ? ` · ${m.idioma} ${(m.confianza_idioma ?? 0).toFixed(2)}` : '';
-      d.innerHTML = `<div></div><div class="meta">turno ${m.orden} · riesgo ${m.riesgo} · cierre +${cierre} · t+${((Date.now()-t0)/1000).toFixed(1)}s${idioma}</div>`;
-      d.firstChild.textContent = m.texto;
+      lineaVera = null;
+      const d = linea('yo', m.texto);
+      nota(d, `turno ${m.orden} · riesgo ${m.riesgo} · cierre +${cierre}`);
       d.appendChild(chips(m.senales));
-      turnos.prepend(d);
     } else {
       vivo.textContent = m.texto;
       vivo.appendChild(chips(m.senales));
       tParcial = Date.now();
     }
   };
-  ws.onclose = () => { estado.textContent = 'Conexión cerrada.'; parar(); };
+  ws.onclose = () => { if (ws) estado.textContent = 'Llamada terminada.'; parar(); };
 };
 
 async function arrancarAudio(rate) {
@@ -206,9 +286,10 @@ async function arrancarAudio(rate) {
 }
 
 function parar() {
-  btn.textContent = 'Empezar a hablar';
+  btn.textContent = 'Llamar';
   vivo.textContent = '…';
   if (ws) { const w = ws; ws = null; w.close(); }
+  callar(Number.MAX_SAFE_INTEGER);
   stream?.getTracks().forEach(t => t.stop());
   ctx?.close();
   ctx = stream = null;
@@ -217,8 +298,6 @@ function parar() {
 // ------------------------------------------------------------ por texto
 const chat = document.getElementById('chat');
 const entrada = document.getElementById('entrada');
-const ACCION_TEXTO = { continue: 'seguir', advise: 'aconsejar', escalate: 'escalar al equipo', emergency: 'emergencia' };
-const FUENTE = { rules: 'las reglas', llm: 'el juez', both: 'reglas y juez', none: '—' };
 let wsTexto, burbuja, colaTexto = [];
 
 function burbujaDe(clase, texto) {
