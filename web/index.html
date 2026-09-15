@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Vera — etapa 3: la red de seguridad</title>
+<title>Vera — en construcción</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 15px/1.6 system-ui, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1.2rem; }
@@ -29,10 +29,30 @@
   .chip.critical { border-color: #dc2626; color: #dc2626; }
   .chip.high     { border-color: #ea580c; color: #ea580c; }
   .chip.moderate { border-color: #ca8a04; color: #ca8a04; }
+  .chip.low, .chip.none { border-color: #9ca3af; color: #6b7280; }
+
+  h2 { font-size: 1.05rem; margin: 2.2rem 0 .1rem; }
+  form { display: flex; gap: .5rem; margin: .8rem 0; }
+  input { flex: 1; font: inherit; padding: .6rem .8rem; border-radius: .5rem;
+          border: 1px solid #9ca3af; background: transparent; color: inherit; }
+  #chat { display: flex; flex-direction: column; gap: .5rem; }
+  .yo, .vera { padding: .6rem .9rem; border-radius: .6rem; max-width: 85%; }
+  .yo { align-self: flex-end; background: rgba(59,130,246,.15); }
+  .vera { align-self: flex-start; background: rgba(127,127,127,.12); }
+  .vera.critical { border-left: 4px solid #dc2626; }
+  .vera.high     { border-left: 4px solid #ea580c; }
 </style>
 
-<h1>Vera — etapa 3: la red de seguridad</h1>
-<p class="sub">AssemblyAI oye y el motor determinista lee cada parcial. Ninguna alerta pasa por un modelo: todavía no hay ninguno conectado.</p>
+<h1>Vera</h1>
+<p class="sub">En construcción. Por texto se prueba la cabeza: reglas, juez y respuesta de Claude. Por voz, el oído y la red de seguridad.</p>
+
+<h2>Por texto</h2>
+<p class="sub">Escriba como si fuera el paciente. Vera responde con Claude Haiku, y las reglas y el juez deciden el riesgo en paralelo.</p>
+<form id="form-texto"><input id="entrada" placeholder="Me duele un poco la herida…" autocomplete="off"><button>Enviar</button></form>
+<div id="chat"></div>
+
+<h2>Por voz</h2>
+<p class="sub">AssemblyAI oye y el motor determinista lee cada parcial. Aquí ninguna alerta pasa por un modelo.</p>
 
 <button id="btn">Empezar a hablar</button>
 <div id="estado">Sin conectar.</div>
@@ -193,4 +213,65 @@ function parar() {
   ctx?.close();
   ctx = stream = null;
 }
+
+// ------------------------------------------------------------ por texto
+const chat = document.getElementById('chat');
+const entrada = document.getElementById('entrada');
+const ACCION_TEXTO = { continue: 'seguir', advise: 'aconsejar', escalate: 'escalar al equipo', emergency: 'emergencia' };
+const FUENTE = { rules: 'las reglas', llm: 'el juez', both: 'reglas y juez', none: '—' };
+let wsTexto, burbuja, colaTexto = [];
+
+function burbujaDe(clase, texto) {
+  const d = document.createElement('div');
+  d.className = clase;
+  d.textContent = texto;
+  chat.appendChild(d);
+  d.scrollIntoView({ block: 'nearest' });
+  return d;
+}
+
+function abrirTexto() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  wsTexto = new WebSocket(`${proto}://${location.host}/ws/texto`);
+  wsTexto.onopen = () => { colaTexto.forEach(t => wsTexto.send(t)); colaTexto = []; };
+  wsTexto.onclose = () => { wsTexto = null; };
+  wsTexto.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'speak') {
+      // Cada frase llega en cuanto está completa, que es cuando en la llamada
+      // empezaría a sonar: se ve aquí lo que el paciente oiría.
+      burbuja ||= burbujaDe('vera', '');
+      burbuja.textContent += (burbuja.textContent ? ' ' : '') + m.texto;
+      return;
+    }
+    if (m.type !== 'turno') return;
+    burbuja ||= burbujaDe('vera', m.utterance);
+    burbuja.classList.add(m.riesgo);
+    const l = m.latencia || {};
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `riesgo ${m.riesgo} · ${ACCION_TEXTO[m.accion]} · decidió ${FUENTE[m.fuente]}` +
+      ` · escrito por ${m.redactado_por === 'codigo' ? 'el código' : 'el modelo'}` +
+      (m.marca !== 'ok' ? ` (${m.marca})` : '') +
+      ` · primera frase ${l.primera_frase_ms ?? '—'} ms · juez ${l.juez_ms ?? '—'} ms`;
+    const motivo = document.createElement('div');
+    motivo.className = 'meta';
+    motivo.textContent = m.motivo;
+    burbuja.append(meta, motivo);
+    burbuja.scrollIntoView({ block: 'nearest' });
+    burbuja = null;
+  };
+}
+
+document.getElementById('form-texto').onsubmit = e => {
+  e.preventDefault();
+  const texto = entrada.value.trim();
+  if (!texto) return;
+  entrada.value = '';
+  burbujaDe('yo', texto);
+  burbuja = null;
+  const msg = JSON.stringify({ texto });
+  if (wsTexto?.readyState === 1) wsTexto.send(msg);
+  else { colaTexto.push(msg); if (!wsTexto) abrirTexto(); }
+};
 </script>

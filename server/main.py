@@ -1,9 +1,13 @@
 """Servidor de la llamada.
 
-El navegador captura el micrófono, manda PCM por WebSocket, y este servidor lo
-reenvía a AssemblyAI y devuelve lo que va oyendo. Cada cosa que llega del
-reconocedor pasa por el motor determinista **antes** de ir a ninguna otra parte:
-la alerta sale de aquí, sin modelo de por medio. Todavía no hay diálogo ni voz.
+Dos entradas, una por cada cosa que ya funciona:
+
+- `/ws/llamada`: el navegador captura el micrófono, manda PCM, y este servidor lo
+  reenvía a AssemblyAI y devuelve lo que va oyendo. Cada cosa que llega del
+  reconocedor pasa por el motor determinista **antes** de ir a ninguna otra
+  parte: la alerta sale de aquí, sin modelo de por medio.
+- `/ws/texto`: la conversación con Vera por texto —reglas, juez y respuesta—,
+  para probar la cabeza antes de juntarla con el oído y la voz.
 
 **La clave de AssemblyAI no pasa por el navegador.** El audio da este rodeo justo
 para eso: el cliente habla con nosotros y nosotros con AssemblyAI.
@@ -13,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -20,6 +25,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 
 from server.config import settings
+from server.dialogo.turno import Conversacion, TurnoVera
+from server.modelo.llm import StructuredLLM
 from server.seguridad.lexico import LEXICON
 from server.seguridad.vigilancia import Lectura, Vigilancia
 from server.voz.keyterms import CONTEXTO_CLINICO, KEYTERMS
@@ -29,7 +36,18 @@ RAIZ = Path(__file__).resolve().parent.parent
 WEB = RAIZ / "web"
 REGISTRO = RAIZ / "registros" / "turnos.jsonl"
 
-app = FastAPI(title="Vera")
+
+@asynccontextmanager
+async def ciclo(app: FastAPI):
+    # Un cliente del modelo por proceso: la conexión con el gateway se reutiliza
+    # entre turnos y entre llamadas. Medido, abrirla de nuevo en cada petición
+    # costaba medio segundo hasta la primera frase.
+    app.state.llm = StructuredLLM()
+    yield
+    await app.state.llm.aclose()
+
+
+app = FastAPI(title="Vera", lifespan=ciclo)
 
 
 @app.get("/")
@@ -49,8 +67,45 @@ async def salud():
         "idiomas": settings.stt_idiomas,
         "keyterms": len(KEYTERMS),
         "lexico": len(LEXICON),
+        "llm": settings.llm_modelo,
         "registro_turnos": settings.registro_turnos,
     })
+
+
+def _turno_json(t: TurnoVera) -> dict:
+    return {
+        "type": "turno",
+        "utterance": t.utterance,
+        "riesgo": t.decision.risk,
+        "accion": t.decision.action,
+        "fuente": t.decision.source,
+        "motivo": t.decision.rationale,
+        "reglas": t.decision.rule_flags,
+        "redactado_por": t.redactado_por,
+        "marca": t.marca,
+        "latencia": t.latencia_ms,
+        "tokens": t.usage,
+    }
+
+
+@app.websocket("/ws/texto")
+async def texto(ws: WebSocket):
+    """Una conversación por conexión, como lo será cada llamada."""
+    await ws.accept()
+    conversacion = Conversacion(ws.app.state.llm)
+    try:
+        while True:
+            m = await ws.receive_json()
+            dicho = (m.get("texto") or "").strip()
+            if not dicho:
+                continue
+            async for tipo, dato in conversacion.turno(dicho):
+                if tipo == "speak":
+                    await ws.send_json({"type": "speak", "texto": dato})
+                else:
+                    await ws.send_json(_turno_json(dato))
+    except WebSocketDisconnect:
+        return
 
 
 def _senales(lectura: Lectura) -> list[dict]:
