@@ -1,7 +1,8 @@
 """Configuración. Todo con un default que funciona; el .env solo ajusta.
 
-La única variable sin default es la clave de AssemblyAI, porque no hay valor
-razonable que inventar: sin ella el agente no oye.
+Las únicas variables sin default son las dos claves, porque no hay valor
+razonable que inventar: sin la de AssemblyAI el agente no oye ni piensa, y sin la
+de Cartesia no habla.
 """
 from pathlib import Path
 
@@ -62,6 +63,18 @@ class Settings(BaseSettings):
     # reglas, que ya evaluaron antes de preguntarle.
     llm_timeout_s: float = 12.0
 
+    # --- Voz de Vera: Cartesia ---
+    cartesia_api_key: str = ""
+    tts_version: str = "2026-08-14"
+    tts_modelo: str = "sonic-3.6"
+    # Mariana: voz colombiana nativa, «maternal, de tono calmado». Elegida
+    # oyendo las cuatro colombianas con el saludo y el mensaje de emergencia.
+    tts_voz: str = "ae823354-f9be-4aef-8543-f569644136b4"
+    # Cartesia no acepta `es-CO` como locale y `es` cae por defecto en el acento
+    # de España. El acento se pide explícito, y tiene que ser uno de la voz.
+    tts_acento: str = "colombian"
+    tts_sample_rate: int = 24000
+
     # --- Red de seguridad ---
     # Guarda cada turno cerrado —lo transcrito y lo que el motor vio— en
     # `registros/turnos.jsonl`. Sirve para medir con habla real lo que el
@@ -72,6 +85,10 @@ class Settings(BaseSettings):
     @property
     def stt_configurado(self) -> bool:
         return bool(self.assemblyai_api_key)
+
+    @property
+    def tts_configurado(self) -> bool:
+        return bool(self.cartesia_api_key)
 
 
 settings = Settings()
