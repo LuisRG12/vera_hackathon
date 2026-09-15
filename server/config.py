@@ -48,6 +48,20 @@ class Settings(BaseSettings):
     # olvidado cuesta igual que una conversación. Esto lo cierra solo.
     stt_inactividad_s: float = 45.0
 
+    # --- Modelo de lenguaje: Claude por el LLM Gateway de AssemblyAI ---
+    # La misma clave de AssemblyAI; el gateway exige pago por uso habilitado.
+    llm_url: str = "https://llm-gateway.assemblyai.com/v1/chat/completions"
+
+    # Haiku y no Sonnet, medido (ver docs/bitacora.md, 13-sep): el primer token
+    # llega en 1,4 s contra 2,2 s, y Sonnet por el gateway no acepta salida
+    # estructurada. El id va tal como lo lista el gateway, con fecha.
+    llm_modelo: str = "claude-haiku-4-5-20251001"
+
+    # Con un modelo en la nube esperar mucho no es prudencia: es una llamada
+    # colgada. Si no contesta a tiempo, la decisión sale con lo que vieron las
+    # reglas, que ya evaluaron antes de preguntarle.
+    llm_timeout_s: float = 12.0
+
     # --- Red de seguridad ---
     # Guarda cada turno cerrado —lo transcrito y lo que el motor vio— en
     # `registros/turnos.jsonl`. Sirve para medir con habla real lo que el
