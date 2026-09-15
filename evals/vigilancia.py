@@ -3,15 +3,15 @@
     uv run python -m evals.vigilancia
 
 Los otros arneses prueban qué detecta el motor en una frase. Este prueba lo que
-pasa entre frases: que una alerta salte una sola vez, que no se retire cuando el
-reconocedor reescribe el turno al cerrarlo, y que la respuesta fija salga cuando
-debe y con el texto que debe.
+pasa entre frases: que una alerta salte una sola vez y que no se retire cuando el
+reconocedor reescribe el turno al cerrarlo. Lo que Vera responde ya no es cosa de
+la vigilancia —lo decide la conversación al cerrar el turno— y se prueba en
+`evals/turno.py`.
 """
 from __future__ import annotations
 
 import sys
 
-from server.seguridad.respuestas import ACOMPANAR, EMERGENCIA
 from server.seguridad.vigilancia import Vigilancia
 
 PASS, FAIL = "  [OK]", "  [FALLA]"
@@ -38,7 +38,6 @@ def main() -> int:
           [a.senal.concepto for a in p.nuevas] == ["perdida_conciencia"])
     check("y no se retira cuando el cierre reescribe el turno", len(v.alertas) == 1)
     check("el turno cerrado conserva el riesgo del parcial", c.riesgo == "critical", c.riesgo)
-    check("la respuesta fija sale una sola vez", p.respuesta == EMERGENCIA and c.respuesta is None)
     check("el riesgo no se arrastra al turno siguiente",
           v.leer("Todo bien, gracias.", orden=10, cerrado=True).riesgo == "none")
 
@@ -55,7 +54,6 @@ def main() -> int:
     d = v.leer("Y ahora no me entra el aire.", orden=2, cerrado=True)
     check("la disnea después de la fiebre es otra alerta",
           [a.senal.concepto for a in d.nuevas] == ["dificultad_respiratoria"])
-    check("y como es crítica, trae la respuesta de emergencia", d.respuesta == EMERGENCIA)
 
     # Lo moderado queda en el turno pero no alerta.
     v = Vigilancia()
@@ -67,10 +65,11 @@ def main() -> int:
     n = v.leer("No tengo fiebre", orden=0, cerrado=False)
     check("un parcial negado no alerta", not n.nuevas)
 
-    # La ideación se acompaña, no se despide a urgencias.
+    # La ideación alerta como emergencia; cómo se le responde es de la conversación.
     v = Vigilancia()
     i = v.leer("Ya no quiero vivir más.", orden=0, cerrado=True)
-    check("ante ideación, la respuesta acompaña", i.respuesta == ACOMPANAR)
+    check("la ideación alerta como emergencia",
+          [a.senal.severidad for a in i.nuevas] == ["critical"])
 
     ok = sum(resultados)
     print(f"\nRESULTADO: {ok}/{len(resultados)} comprobaciones de la vigilancia.")

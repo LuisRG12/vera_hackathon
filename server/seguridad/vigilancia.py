@@ -32,13 +32,18 @@ la fiebre no es la misma noticia.
 `moderate` queda en el turno pero no alerta: un «me duele durísimo» amerita
 consejo, y convertirlo en aviso sería la inflación de alarma que hace que el
 equipo deje de mirar.
+
+**Alerta, pero no habla.** La alerta sale lo antes posible; lo que Vera le dice
+al paciente espera a que termine de hablar, y lo decide la conversación al
+cerrarse el turno (`server/dialogo/turno.py`). Contestarle desde un parcial sería
+hablarle encima a alguien que está describiendo un dolor de pecho, y tener dos
+sitios que deciden qué dice Vera es tener dos sitios que pueden contradecirse.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from server.seguridad.reglas import ACTION_FOR, detect_red_flags, max_sev, max_severity
-from server.seguridad.respuestas import ACOMPANAR, EMERGENCIA
 
 ACCIONES_QUE_ALERTAN = ("escalate", "emergency")
 
@@ -71,9 +76,6 @@ class Lectura:
     # mayor que lo que dicen las `senales` de este texto: ver arriba.
     riesgo: str
     nuevas: list[Alerta] = field(default_factory=list)
-    # Lo que Vera responde cuando lo decide el código. Solo ante una emergencia
-    # nueva: repetirlo en cada parcial sería hablarle encima al paciente.
-    respuesta: str | None = None
 
 
 class Vigilancia:
@@ -96,10 +98,6 @@ class Vigilancia:
             alerta = Alerta(s, texto, orden, en_parcial=not cerrado)
             self.alertas.append(alerta)
             lectura.nuevas.append(alerta)
-
-        if any(a.senal.severidad == "critical" for a in lectura.nuevas):
-            ideacion = any(s.concepto == "ideacion_suicida" for s in senales)
-            lectura.respuesta = ACOMPANAR if ideacion else EMERGENCIA
         return lectura
 
     def alertas_del_turno(self, orden: int) -> list[Alerta]:
