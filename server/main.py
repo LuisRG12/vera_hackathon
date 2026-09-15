@@ -58,8 +58,13 @@ def _senales(lectura: Lectura) -> list[dict]:
             for s in lectura.senales]
 
 
-def _anotar(llamada: str, t: Turno, lectura: Lectura) -> None:
-    """Deja el turno cerrado en el registro, si está encendido (ver config)."""
+def _anotar(llamada: str, t: Turno, lectura: Lectura, vigilancia: Vigilancia) -> None:
+    """Deja el turno cerrado en el registro, si está encendido (ver config).
+
+    Con las alertas que saltaron durante el turno: si saltó en un parcial y el
+    turno cerrado lo reescribió, el texto final ya no la explica, y sin esto el
+    registro diría que en ese turno no pasó nada.
+    """
     if not settings.registro_turnos:
         return
     REGISTRO.parent.mkdir(exist_ok=True)
@@ -70,6 +75,9 @@ def _anotar(llamada: str, t: Turno, lectura: Lectura) -> None:
         "texto": t.texto,
         "riesgo": lectura.riesgo,
         "senales": _senales(lectura),
+        "alertas": [{"concepto": a.senal.concepto, "coincidencia": a.senal.coincidencia,
+                     "texto": a.texto, "en_parcial": a.en_parcial}
+                    for a in vigilancia.alertas_del_turno(t.orden)],
         "stt": settings.stt_modelo,
     }
     with REGISTRO.open("a", encoding="utf-8") as f:
@@ -153,7 +161,7 @@ async def llamada(ws: WebSocket):
                 "senales": _senales(lectura),
             })
             if t.cerrado:
-                _anotar(llamada, t, lectura)
+                _anotar(llamada, t, lectura, vigilancia)
         # Si el reconocedor se cayó por algo, que se vea en la pantalla y no
         # solo en el log: quien prueba la llamada no está mirando la consola.
         if stt.error:
