@@ -44,14 +44,13 @@ fonética, es que el modelo de lenguaje de Vosk **cambie una palabra rara por un
 común que suena parecido**. Ahí no hay clase de sonido que tolerar: hay un par
 observado, y se declara uno a uno con la llamada que lo produjo.
 
-**El bloque está vacío desde que el oído es AssemblyAI.** Las confusiones son de
-un reconocedor concreto, y la única que había —«inspección» por «infección»— no
-apareció nunca en el barrido de `evals/confusiones.py`, ni siquiera diciendo «he
-tenido infección», que fue la frase que la originó. Conservarla era pagar su
-falso positivo sin su beneficio. El mecanismo se queda: lo que AssemblyAI
-confunda con habla real se declara aquí, con la transcripción que lo mostró.
-Lo que su formateo deforma —cifras en dígitos, guiones— no es una confusión de
-palabra sino de escritura, y se absorbe en el patrón o en `compilar_termino`.
+**Las confusiones de Vosk no se heredaron.** Son de un reconocedor concreto, y la
+única que había —«inspección» por «infección»— no apareció nunca con AssemblyAI,
+ni en el barrido de `evals/confusiones.py` ni con voz real. Conservarla era pagar
+su falso positivo sin su beneficio. Las que hay ahora son de AssemblyAI y se
+declaran con la transcripción que las mostró. Lo que su formateo deforma —cifras
+en dígitos, guiones— no es una confusión de palabra sino de escritura, y se
+absorbe en el patrón o en `compilar_termino`.
 
 **Por qué no se corrige el texto con un modelo.** Sería poner un generativo
 delante de la capa determinista: las reglas dejarían de leer al paciente para
@@ -127,6 +126,12 @@ LEXICON: dict[str, dict] = {
             "no despierta", "no se despierta", "no reacciona",
             "no lo puedo despertar", "no la puedo despertar",
         ],
+        # La primera confusión de AssemblyAI, oída con voz real el 13 de
+        # septiembre: «me dio un yeyo» llegó dos veces como «jejum» —palabra
+        # portuguesa—: «medio en jejum» y «Medio pues un jejum». En la segunda,
+        # el parcial había oído bien y el turno cerrado lo reescribió. Nadie dice
+        # «jejum» en una llamada en español, así que el costo es nulo.
+        "confusiones": ["jejum"],
         "nota": "patatús / yeyo / la pálida: desvanecimiento en habla popular "
                 "colombiana. Confirmado en diccionarios de colombianismos.",
     },

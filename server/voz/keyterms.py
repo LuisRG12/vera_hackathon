@@ -11,10 +11,15 @@ procedimientos y vocabulario clínico. **No** van palabras comunes; la doc de
 AssemblyAI advierte que para esas el modelo ya es competente y meterlas solo
 gasta el cupo, que es de 100 términos de 50 caracteres.
 
-Lo que el paciente dice en habla corriente —«botando materia», «me dio un yeyo»—
-NO va aquí: eso no es vocabulario raro, es el léxico clínico colombiano y se
-resuelve en la capa determinista (etapa 3), que es donde puede revisarlo alguien
-con criterio clínico.
+Lo que el paciente dice en habla corriente —«botando materia»— NO va aquí: eso no
+es vocabulario raro, es el léxico clínico colombiano y se resuelve en la capa
+determinista, que es donde puede revisarlo alguien con criterio clínico.
+
+**Salvo cuando el reconocedor demuestra que no la conoce.** La capa determinista
+solo puede leer lo que se transcribió, y si la palabra nunca llega escrita no hay
+nada que leer. Pasó con «yeyo»: con voz real llegó dos veces como «jejum». Para
+esas, y solo con la transcripción que lo muestre, se le avisa antes al
+reconocedor.
 """
 
 CONTEXTO_CLINICO = (
@@ -40,4 +45,6 @@ KEYTERMS: list[str] = [
     "cefalexina", "ciprofloxacina", "metronidazol", "omeprazol",
     # Sistema de salud colombiano
     "EPS", "IPS", "urgencias", "triage", "remisión", "incapacidad",
+    # Habla colombiana que el reconocedor no conocía (ver arriba)
+    "yeyo",
 ]

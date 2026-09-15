@@ -56,6 +56,18 @@ def _sin_tildes(s: str) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
+# Muletillas: palabras que un paciente colombiano mete en medio de lo que cuenta
+# sin que cambien lo que dice. Con voz real, «la herida está botando como
+# materia» no disparaba: ese «como» partía la frase que el léxico conoce. La voz
+# sintética nunca las dice, por eso no salieron antes. Solo las que se oyeron.
+_MULETILLAS = r"(?:como|pues)"
+
+# Lo que puede ir entre dos palabras de un término: espacio, la coma con que
+# AssemblyAI marca una duda, el guion con que une lo que cree un compuesto
+# —«coca cola» llegó como «Coca-Cola»— y, como mucho, una muletilla.
+_ENTRE_PALABRAS = rf"[\s,-]+(?:{_MULETILLAS}[\s,]+)?"
+
+
 def compilar_termino(termino: str) -> str:
     """Frase plana -> regex, tolerante a cómo transcribe un STT.
 
@@ -72,7 +84,7 @@ def compilar_termino(termino: str) -> str:
       - `ll` ↔ `y` (yeísmo: desmayé/desmalle)
       - `b` ↔ `v` (indistinguibles al oído)
       - `s` y `r` finales de palabra opcionales (aspiración e infinitivos)
-      - espacio ↔ guion (el formateo de AssemblyAI: «Coca-Cola»)
+      - entre palabras, coma, guion o una muletilla (ver `_ENTRE_PALABRAS`)
 
     Se hace en el patrón, no normalizando el texto de entrada: así los índices
     de la coincidencia siguen siendo válidos para el análisis de la negación.
@@ -125,12 +137,7 @@ def compilar_termino(termino: str) -> str:
         elif ch == "*":
             partes.append(r"\w*")
         elif ch == " ":
-            # Espacio o guion. AssemblyAI formatea el texto y une con guion lo
-            # que reconoce como compuesto o marca: «la orina como coca cola»
-            # llegó como «Coca-Cola» y la ictericia se perdió (evals/confusiones.py).
-            # Es la misma clase de defecto que la tilde —cómo se escribe, no qué
-            # se dijo—, y se absorbe igual: en el patrón.
-            partes.append(r"[\s-]+")
+            partes.append(_ENTRE_PALABRAS)
         else:
             partes.append(re.escape(ch))
         i += 1
@@ -204,7 +211,11 @@ _BRIDGE_WORD = (
     # encontraba, pero el puente se rompía en la primera palabra que no fuera
     # auxiliar. Son verbos vacíos de contenido clínico —no aportan síntoma—, así
     # que dejarlos pasar no ensancha el alcance de forma peligrosa.
-    r"quiero|quisiera|queria|pienso|pensado|pensar|pensando|ganas|en|creo|siquiera)"
+    r"quiero|quisiera|queria|pienso|pensado|pensar|pensando|ganas|en|creo|siquiera|"
+    # Las mismas muletillas que se toleran dentro de un término: si «como»
+    # no parte «botando como materia», tampoco puede partir «no tengo como
+    # fiebre» y convertir una negación en un síntoma reportado.
+    r"como|pues)"
 )
 _BRIDGE = re.compile(rf"^(?:\s*{_BRIDGE_WORD}\b)*\s*$", re.I)
 

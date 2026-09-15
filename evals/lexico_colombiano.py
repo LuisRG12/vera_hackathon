@@ -147,6 +147,19 @@ POSITIVOS = [
     # «yeyo» llegó como «yello»: lo absorbe la tolerancia al yeísmo que ya
     # traía el motor. Se fija aquí para que siga siendo cierto.
     ("Me dio un yello en el baño.", "perdida_conciencia", "critical"),
+
+    # --- con voz real, 13 de septiembre: tal cual quedaron en el registro ---
+    # La muletilla partía el término: «botando como materia» no disparaba.
+    ("También te comento que, que la herida está botando como materia.",
+     "infeccion", "high"),
+    # «me dio un yeyo», dos veces, oído como la palabra portuguesa «jejum».
+    ("Y hace como 2 minutos que me levanté al baño, medio en jejum.",
+     "perdida_conciencia", "critical"),
+    ("Medio pues un jejum, si no entendiste.", "perdida_conciencia", "critical"),
+    # Estas ya salían bien, y se fijan para que sigan saliendo.
+    ("Y te digo que me sale pus de la herida.", "infeccion", "high"),
+    ("He tenido infección.", "infeccion", "high"),
+    ("También te cuento que tengo 39 de temperatura.", "fiebre", "high"),
 ]
 
 # Frases que NO deben disparar nada. Un agente que escala con todo es ruido.
@@ -159,6 +172,11 @@ NEGATIVOS = [
     ("La temperatura bien, tengo 40 años.", "la cifra es la edad"),
     ("No tengo 39 de temperatura.", "cifra de fiebre, negada"),
     ("La temperatura me bajó a 36.", "temperatura normal"),
+    # Voz real: la negación con muletillas alrededor. Si «como» ya no parte un
+    # término, tampoco puede partir la negación y volverla un síntoma.
+    ("Pero ahora pues ya no tengo fiebre ni escalofríos.", "negación, voz real"),
+    ("No tengo como fiebre.", "muletilla entre la negación y el síntoma"),
+    ("Ya no tengo pues fiebre.", "muletilla entre la negación y el síntoma"),
     # El imperfecto es la forma más común de negar hablando, y no se reconocía:
     # «no tenía fiebre» entraba como fiebre REPORTADA y la llamada escalaba. Se
     # vio por micrófono — el paciente dijo que no y Vera le contestó que «ha
