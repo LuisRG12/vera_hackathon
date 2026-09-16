@@ -24,9 +24,14 @@ Lo nuevo:
 - **Lo que dice el código suena de inmediato**, porque ya está sintetizado
   (`FrasesFijas`); lo que genera el modelo se va sintetizando frase a frase.
 
-Todavía no hay filtro de eco: con parlantes, el micrófono oye a Vera y la
-transcribe como si fuera el paciente. Hasta el paso siguiente, se prueba con
-audífonos.
+- **Lo que Vera dice vuelve por el micrófono**, y el reconocedor lo transcribe
+  como si hablara el paciente. El filtro de eco (`voz/eco.py`) lo reconoce y lo
+  descarta, con una excepción: un signo crítico nunca se descarta. Sin esto,
+  Vera repitiendo «ese dolor en el pecho» levantaría ella sola una emergencia.
+- **El paciente calla a Vera en cuanto toma la palabra**, con lo que oiga el
+  reconocedor mientras ella habla. Y cancelar su respuesta no cancela la
+  seguridad: el turno interrumpido se cierra igual con la valoración del juez,
+  que ya venía en camino.
 """
 from __future__ import annotations
 
@@ -42,12 +47,19 @@ from fastapi import WebSocket, WebSocketDisconnect
 from server.config import settings
 from server.dialogo.prompts import SALUDO
 from server.dialogo.turno import Conversacion, TurnoVera
+from server.seguridad.reglas import detect_red_flags, max_severity
 from server.seguridad.vigilancia import Lectura, Vigilancia
+from server.voz.eco import RegistroDeVoz
 from server.voz.keyterms import CONTEXTO_CLINICO, KEYTERMS
 from server.voz.stt import ErrorSTT, Turno, crear_stt
 from server.voz.tts import ErrorVoz, FrasesFijas, TurnoDeVoz, VozCartesia
 
 REGISTRO = Path(__file__).resolve().parents[2] / "registros" / "turnos.jsonl"
+
+# Cuántas palabras hacen falta en un parcial para callar a Vera. Con una basta un
+# carraspeo que el reconocedor transcriba como cualquier cosa; con dos, el
+# paciente está tomando la palabra de verdad.
+MINIMO_PARA_CORTAR = 2
 
 
 def senales_json(lectura: Lectura) -> list[dict]:
@@ -78,6 +90,8 @@ class SesionLlamada:
         self.fijas: FrasesFijas = estado.fijas
         self.stt = crear_stt(keyterms=KEYTERMS, contexto=CONTEXTO_CLINICO)
         self.vigilancia = Vigilancia()
+        # Lo que Vera lleva dicho, para reconocerlo si vuelve por el micrófono.
+        self.dichas = RegistroDeVoz()
         self.conversacion = Conversacion(estado.llm, apertura=SALUDO)
         self.voz = VozCartesia()
         self.con_voz = False
@@ -90,6 +104,10 @@ class SesionLlamada:
         # servidor solo sabe cuándo terminó de mandar el audio, no de sonar.
         self.sonando = False
         self._ultimo = 0.0
+        # Una sola alerta por llamada cuando el escalamiento lo pone el juez: su
+        # valoración vuelve turno a turno, y repetirla sería el ruido que hace
+        # que el equipo clínico deje de mirar las alertas.
+        self._alerta_juez = False
 
     # ------------------------------------------------------- envío al cliente
     async def _enviar(self, dato: dict) -> None:
@@ -105,6 +123,7 @@ class SesionLlamada:
 
     # ------------------------------------------------------------ lo que dice
     async def _decir_fija(self, texto: str, n: int) -> None:
+        self.dichas.recordar(texto)
         await self._enviar({"type": "frase", "texto": texto})
         if (pcm := self.fijas.audio(texto)) is not None:
             await self._enviar_audio(n, pcm)
@@ -115,8 +134,7 @@ class SesionLlamada:
 
     def _nuevo_turno(self, texto: str) -> None:
         # Un turno nuevo del paciente corta lo que Vera estuviera diciendo.
-        if self._generando and not self._generando.done():
-            self._generando.cancel()
+        self._cortar()
         self._generando = asyncio.create_task(self._emitir_turno(texto))
 
     async def _emitir_turno(self, texto: str) -> None:
@@ -149,6 +167,7 @@ class SesionLlamada:
             async for tipo, dato in self.conversacion.turno(texto):
                 if tipo != "speak":
                     await self._enviar({"type": "vera", **turno_json(dato)})
+                    await self._alertar_juez(dato)
                     continue
                 self._movimiento()
                 if self.fijas.audio(dato) is not None:
@@ -157,6 +176,10 @@ class SesionLlamada:
                     await cerrar_voz()
                     await self._decir_fija(dato, n)
                     continue
+                # Se apunta ANTES de mandarla: el reconocedor puede devolverla
+                # mientras todavía se sintetiza la siguiente, y apuntarla después
+                # dejaría una ventana en la que el eco no se reconoce.
+                self.dichas.recordar(dato)
                 await self._enviar({"type": "frase", "texto": dato})
                 if not self.con_voz:
                     continue
@@ -197,11 +220,83 @@ class SesionLlamada:
         with REGISTRO.open("a", encoding="utf-8") as f:
             f.write(json.dumps(fila, ensure_ascii=False) + "\n")
 
+    def _es_eco(self, texto: str) -> bool:
+        """Si esto lo dijo Vera y volvió por el micrófono.
+
+        **Un signo crítico nunca se descarta**, aunque coincida con lo que Vera
+        acaba de decir. El caso es real y es el peor posible: Vera pregunta «¿ha
+        tenido dolor en el pecho?», el paciente contesta «dolor en el pecho», y
+        eso es literalmente lo que ella dijo. Se descartaba en silencio y la
+        urgencia no llegaba a existir.
+
+        La exención es de `critical` y no de toda alarma: los textos fijos de
+        Vera no disparan ninguna crítica por sí solos, pero sí `high` —dicen
+        «fiebre», «materia», lo que el paciente acaba de contar—, y exentar
+        `high` reabriría el defecto que este filtro existe para cerrar.
+        """
+        if max_severity(detect_red_flags(texto)) == "critical":
+            return False
+        return self.dichas.es_eco(texto, reproduciendo=self.sonando)
+
+    def _cortar(self) -> None:
+        """Calla a Vera y cierra el turno que se estaba generando.
+
+        Cancelar la generación no puede cancelar la seguridad: el juez de ese
+        turno ya venía en camino, así que la conversación lo cierra igual con lo
+        que alcanzó a decirse. Sin esto, el turno que el paciente interrumpe
+        —justo cuando tiene algo urgente que contar— sería el único sin la
+        segunda capa.
+        """
+        if not (self._generando and not self._generando.done()):
+            return
+        self._generando.cancel()
+        self._generando = None
+        asyncio.create_task(self._cerrar_interrumpido())
+
+    async def _cerrar_interrumpido(self) -> None:
+        turno = await self.conversacion.cerrar_interrumpido()
+        if turno is not None:
+            await self._enviar({"type": "vera", **turno_json(turno)})
+            await self._alertar_juez(turno)
+
+    async def _alertar_juez(self, turno: TurnoVera) -> None:
+        """Cuando el escalamiento lo pone el juez y no las reglas.
+
+        Las alertas de la vigilancia salen de las reglas. Si el juez escala algo
+        que las reglas no vieron —para eso está—, el equipo clínico tiene que
+        enterarse igual, y hasta aquí eso solo se veía en la decisión del turno.
+        """
+        d = turno.decision
+        if self._alerta_juez or d.source != "llm" or d.action not in ("escalate", "emergency"):
+            return
+        self._alerta_juez = True
+        await self._enviar({
+            "type": "alerta",
+            "concepto": "lo vio el juez",
+            "severidad": d.risk,
+            "accion": d.action,
+            "coincidencia": d.rationale.removeprefix("juez: ")[:160],
+            "texto": turno.utterance,
+            "orden": -1,
+            "en_parcial": False,
+        })
+
     async def _bajada(self) -> None:
-        """Lo que llega del reconocedor: primero lo lee la vigilancia."""
+        """Lo que llega del reconocedor: primero se descarta el eco, luego lee la
+        vigilancia, y con lo que queda se calla a Vera si el paciente habla."""
         async for t in self.stt.eventos():
             if t.vacio:
                 continue
+            if self._es_eco(t.texto):
+                # No es el paciente: ni reinicia el reloj del silencio, ni lo lee
+                # la vigilancia —Vera repite los síntomas que le cuentan, así que
+                # su eco levantaría alarmas por lo que ella misma dijo—, ni corta
+                # su propia frase a la mitad.
+                if t.cerrado:
+                    await self._enviar({"type": "descartado", "motivo": "eco",
+                                        "texto": t.texto, "orden": t.orden})
+                continue
+
             self._movimiento()
             lectura = self.vigilancia.leer(t.texto, t.orden, t.cerrado)
             for a in lectura.nuevas:
@@ -225,9 +320,18 @@ class SesionLlamada:
                 "riesgo": lectura.riesgo,
                 "senales": senales_json(lectura),
             })
-            if t.cerrado:
-                self._anotar(t, lectura)
-                self._nuevo_turno(t.texto)
+
+            if not t.cerrado:
+                # El paciente tomó la palabra mientras Vera hablaba: se calla.
+                # Interrumpir a un agente que se equivocó no puede exigir
+                # esperar a que termine, que es lo que vuelve insoportable
+                # hablar con una máquina.
+                if len(t.texto.split()) >= MINIMO_PARA_CORTAR:
+                    self._cortar()
+                continue
+
+            self._anotar(t, lectura)
+            self._nuevo_turno(t.texto)
         if self.stt.error:
             await self._enviar({"type": "error", "detalle": self.stt.error})
 

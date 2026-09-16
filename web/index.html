@@ -39,6 +39,7 @@
   .yo, .vera { padding: .6rem .9rem; border-radius: .6rem; max-width: 85%; }
   .yo { align-self: flex-end; background: rgba(59,130,246,.15); }
   .vera { align-self: flex-start; background: rgba(127,127,127,.12); }
+  .eco { align-self: center; color: #6b7280; font-size: .8rem; font-style: italic; }
   .vera.critical { border-left: 4px solid #dc2626; }
   .vera.high     { border-left: 4px solid #ea580c; }
 </style>
@@ -230,6 +231,12 @@ btn.onclick = async () => {
     }
     if (m.type === 'alerta') { mostrarAlerta(m); return; }
     if (m.type === 'callar') { callar(m.hasta); return; }
+    if (m.type === 'descartado') {
+      // Se dice, no se calla: un turno que desaparece sin rastro es
+      // indistinguible de un micrófono que no funciona.
+      nota(linea('eco', `(el micrófono oyó a Vera: «${m.texto}»)`), 'descartado como eco');
+      return;
+    }
     if (m.type === 'frase') {
       // Cada frase llega antes que su audio: se ve en cuanto existe.
       if (!lineaVera) lineaVera = linea('vera', m.texto);
