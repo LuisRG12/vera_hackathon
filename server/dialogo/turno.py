@@ -212,8 +212,14 @@ class Conversacion:
     def _cerrar(self, texto, flags, ra, utterance, redactado_por, marca,
                 uso, lat, t0) -> TurnoVera:
         """Punto único por el que pasan todas las rutas del turno."""
-        self.historial += [{"role": "user", "content": texto},
-                           {"role": "assistant", "content": utterance}]
+        self.historial.append({"role": "user", "content": texto})
+        # Solo si Vera alcanzó a decir algo. Un turno interrumpido antes de la
+        # primera frase deja la respuesta vacía, y un mensaje vacío en el
+        # historial lo rechaza el modelo: el gateway devuelve un 500 y, como el
+        # historial se arrastra, caían también los turnos siguientes. Se vio en
+        # una llamada completa, después de interrumpir a Vera.
+        if utterance.strip():
+            self.historial.append({"role": "assistant", "content": utterance})
         self.historial = self.historial[-2 * INTERCAMBIOS:]
         self._en_curso = None
         decision = combinar(flags, ra)

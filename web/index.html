@@ -245,7 +245,7 @@ btn.onclick = async () => {
       return;
     }
     if (m.type === 'vera') {
-      const d = lineaVera || linea('vera', m.utterance);
+      const d = lineaVera || linea('vera', m.utterance || '(sin alcanzar a responder)');
       d.classList.add(m.riesgo);
       const l = m.latencia || {};
       nota(d, `riesgo ${m.riesgo} · ${ACCION_TEXTO[m.accion]} · decidió ${FUENTE[m.fuente]}` +

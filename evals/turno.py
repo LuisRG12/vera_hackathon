@@ -166,6 +166,17 @@ async def main() -> int:
           m.ultimo_previo_al_juez == "Te cuento que me duele el brazo, ¿cierto?",
           str(m.ultimo_previo_al_juez))
 
+    print("\n== Un turno interrumpido antes de decir nada ==")
+    conv = Conversacion(ModeloDeMentira(respuesta="Tarda en salir.", pausa=0.05))
+    tarea = asyncio.create_task(turno(conv, "me duele la herida"))
+    await asyncio.sleep(0.02)
+    tarea.cancel()
+    t = await conv.cerrar_interrumpido()
+    check("se cierra igual, con la valoración del juez",
+          t is not None and t.marca == "interrumpido", str(t and t.marca))
+    check("y no mete en el historial un mensaje vacío, que el modelo rechaza",
+          all(m["content"].strip() for m in conv.historial), str(conv.historial))
+
     ok = sum(resultados)
     print(f"\nRESULTADO: {ok}/{len(resultados)} comprobaciones del turno.")
     return 0 if ok == len(resultados) else 1
