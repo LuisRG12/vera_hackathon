@@ -64,6 +64,17 @@ class RespuestaVera(BaseModel):
 
 
 @dataclass
+class EnCurso:
+    """El turno que se está generando, por si lo interrumpen a la mitad."""
+
+    texto: str
+    flags: list
+    juez: asyncio.Task
+    dichas: list[str]
+    t0: float
+
+
+@dataclass
 class TurnoVera:
     utterance: str
     decision: SafetyDecision
@@ -90,6 +101,7 @@ class Conversacion:
         # —es texto fijo—, así que sin esto no sabe que ya se presentó y vuelve a
         # saludar o a preguntar lo mismo.
         self.apertura = apertura
+        self._en_curso: EnCurso | None = None
         # Lo que el juez ve del turno anterior. Solo si ese turno NO escaló: el
         # turno anterior está para completar una frase que el reconocedor partió
         # —«me duele el brazo, ¿cierto?» + «se me pasa al lado izquierdo»—, y lo
@@ -117,6 +129,8 @@ class Conversacion:
         # Si el juez falla y nadie llega a esperarlo —la ruta degradada lo
         # cancela—, asyncio ensucia el log con un error que no lo es.
         juez.add_done_callback(lambda t: t.cancelled() or t.exception())
+        dichas: list[str] = []
+        self._en_curso = EnCurso(texto, flags, juez, dichas, t0)
 
         # Emergencia: la escribe el código. Ver server/seguridad/respuestas.py
         # por qué ante un crítico no se deja al modelo elegir las palabras.
@@ -124,6 +138,7 @@ class Conversacion:
             ideacion = any(f.name == "ideacion_suicida" for f in flags)
             respuesta = ACOMPANAR if ideacion else EMERGENCIA
             lat["primera_frase_ms"] = _ms(t0)
+            dichas.append(respuesta)
             yield "speak", respuesta
             ra, uso = await _esperar(juez)
             yield "turn", self._cerrar(texto, flags, ra, respuesta, "codigo", "emergencia",
@@ -135,7 +150,6 @@ class Conversacion:
         if self.apertura and not self.historial:
             user = f"VERA YA DIJO AL CONTESTAR LA LLAMADA: «{self.apertura}»\n\n{user}"
         partidor = SentenceSplitter()
-        dichas: list[str] = []
         obj, uso_resp = None, {}
         try:
             async for tipo, dato in self.llm.astructured_stream(
@@ -179,12 +193,29 @@ class Conversacion:
         yield "turn", self._cerrar(texto, flags, ra, utterance, redactado_por, marca,
                                    uso, lat, t0)
 
+    async def cerrar_interrumpido(self) -> TurnoVera | None:
+        """Cierra el turno que el paciente interrumpió, con lo que se alcanzó a decir.
+
+        **Cancelar la respuesta no puede cancelar la seguridad.** El juez de ese
+        turno ya estaba en camino cuando el paciente volvió a hablar, así que se
+        espera su valoración y la decisión sale igual. Sin esto, el turno
+        interrumpido —que suele serlo porque el paciente tiene algo más que
+        contar— sería el único de la llamada sin la segunda capa.
+        """
+        if self._en_curso is None:
+            return None
+        e, self._en_curso = self._en_curso, None
+        ra, uso = await _esperar(e.juez)
+        return self._cerrar(e.texto, e.flags, ra, " ".join(e.dichas),
+                            "modelo", "interrumpido", uso, {}, e.t0)
+
     def _cerrar(self, texto, flags, ra, utterance, redactado_por, marca,
                 uso, lat, t0) -> TurnoVera:
         """Punto único por el que pasan todas las rutas del turno."""
         self.historial += [{"role": "user", "content": texto},
                            {"role": "assistant", "content": utterance}]
         self.historial = self.historial[-2 * INTERCAMBIOS:]
+        self._en_curso = None
         decision = combinar(flags, ra)
         self._previo = None if decision.risk in ("high", "critical") else texto
         lat["total_ms"] = _ms(t0)

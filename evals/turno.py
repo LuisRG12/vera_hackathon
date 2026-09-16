@@ -35,8 +35,8 @@ class ModeloDeMentira:
     """Responde lo que se le diga, y cuenta cuántas veces lo invocaron."""
 
     def __init__(self, respuesta="Qué bueno que pudo caminar. ¿Cómo ha estado la herida hoy?",
-                 riesgo="none", falla_respuesta=False, falla_juez=False):
-        self.respuesta, self.riesgo = respuesta, riesgo
+                 riesgo="none", falla_respuesta=False, falla_juez=False, pausa=0.0):
+        self.respuesta, self.riesgo, self.pausa = respuesta, riesgo, pausa
         self.falla_respuesta, self.falla_juez = falla_respuesta, falla_juez
         self.respuestas_pedidas = 0
         self.ultimo_prompt = ""
@@ -48,8 +48,11 @@ class ModeloDeMentira:
         self.ultimo_prompt = user
         if self.falla_respuesta:
             raise LLMError("el gateway no responde")
-        # Llega a pedazos, como del gateway.
+        # Llega a pedazos, como del gateway. `pausa` sirve para que un turno dure
+        # lo suficiente como para poder interrumpirlo.
         for i in range(0, len(self.respuesta), 7):
+            if self.pausa:
+                await asyncio.sleep(self.pausa)
             yield "delta", self.respuesta[i:i + 7]
         uso = {"input_tokens": 100, "output_tokens": 20}
         yield "final", (schema(utterance=self.respuesta), uso)
