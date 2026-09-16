@@ -45,7 +45,7 @@ from pathlib import Path
 from fastapi import WebSocket, WebSocketDisconnect
 
 from server.config import settings
-from server.dialogo.prompts import SALUDO
+from server.dialogo.prompts import DESPEDIDA_FINAL, RETOMAR_SILENCIO, SALUDO, SIN_OIDO
 from server.dialogo.turno import Conversacion, TurnoVera
 from server.seguridad.reglas import detect_red_flags, max_severity
 from server.seguridad.vigilancia import Lectura, Vigilancia
@@ -104,6 +104,7 @@ class SesionLlamada:
         # servidor solo sabe cuándo terminó de mandar el audio, no de sonar.
         self.sonando = False
         self._ultimo = 0.0
+        self._retomes = 0
         # Una sola alerta por llamada cuando el escalamiento lo pone el juez: su
         # valoración vuelve turno a turno, y repetirla sería el ruido que hace
         # que el equipo clínico deje de mirar las alertas.
@@ -118,8 +119,20 @@ class SesionLlamada:
         async with self._envio:
             await self.ws.send_bytes(struct.pack("<I", n) + pcm)
 
-    def _movimiento(self) -> None:
+    def _reloj(self) -> None:
+        """Reinicia la cuenta del silencio, sin tocar los intentos.
+
+        Es lo que hace Vera al hablar: mientras suena su voz no hay silencio que
+        medir, pero su propia frase no puede contar como que el paciente
+        contestó. Confundir las dos cosas dejaba al vigilante sin escalar nunca
+        —cada retome se anulaba a sí mismo— y por tanto sin cerrar la llamada.
+        """
         self._ultimo = asyncio.get_running_loop().time()
+
+    def _movimiento(self) -> None:
+        """El PACIENTE dijo algo: se reinicia la cuenta y los intentos."""
+        self._reloj()
+        self._retomes = 0
 
     # ------------------------------------------------------------ lo que dice
     async def _decir_fija(self, texto: str, n: int) -> None:
@@ -141,6 +154,16 @@ class SesionLlamada:
         """Genera el turno y va mandando cada frase con su audio."""
         self._n += 1
         n = self._n
+        # Si Cartesia se cayó en un turno anterior, se intenta una vez por turno:
+        # una llamada no puede quedarse muda para siempre por un corte de un rato.
+        if not self.con_voz:
+            try:
+                await self.voz.cerrar()
+                await self.voz.abrir()
+                self.con_voz = True
+                await self._enviar({"type": "aviso", "detalle": "voz recuperada"})
+            except ErrorVoz:
+                pass
         voz: TurnoDeVoz | None = None
         reenvio: asyncio.Task | None = None
 
@@ -169,7 +192,7 @@ class SesionLlamada:
                     await self._enviar({"type": "vera", **turno_json(dato)})
                     await self._alertar_juez(dato)
                     continue
-                self._movimiento()
+                self._reloj()
                 if self.fijas.audio(dato) is not None:
                     # Lo que venía del modelo termina de mandarse antes: el
                     # respaldo fijo va después de lo ya dicho, no encima.
@@ -332,8 +355,14 @@ class SesionLlamada:
 
             self._anotar(t, lectura)
             self._nuevo_turno(t.texto)
+        # El reconocedor se cayó. Vera todavía puede hablar —su voz es otro
+        # servicio—, así que lo dice en vez de colgar en silencio, y la llamada
+        # termina: seguir abierta sin oír a nadie no es degradarse, es fingir.
         if self.stt.error:
             await self._enviar({"type": "error", "detalle": self.stt.error})
+            self._n += 1
+            await self._decir_fija(SIN_OIDO, self._n)
+            await asyncio.sleep(len(SIN_OIDO) * 0.06)  # que alcance a sonar
 
     async def _subida(self) -> None:
         """Lo que manda el navegador: audio del micrófono y avisos de reproducción."""
@@ -359,26 +388,45 @@ class SesionLlamada:
         except (WebSocketDisconnect, ErrorSTT, RuntimeError):
             return
 
-    async def _reloj(self) -> None:
-        """Cierra la llamada si nadie dice nada, para no gastar crédito.
+    def _que_decir_al_silencio(self, callado: float) -> str | None:
+        """Qué toca decir tras `callado` segundos sin nada, o nada.
 
-        AssemblyAI factura por tiempo de conexión abierta. Mientras Vera habla
-        —o se está generando lo que va a decir— no hay silencio que contar: el
-        del paciente escuchándola es parte normal de la llamada. El paso de la
-        etapa 5 sobre el silencio cambia esto por algo más humano que colgar.
+        Aparte del bucle a propósito: la decisión es determinista y se prueba en
+        milisegundos, mientras que probarla dentro del temporizador exigiría un
+        arnés que duerme medio minuto, y un arnés lento deja de correrse.
+        """
+        if self._retomes == 0 and callado >= settings.silencio_retomar_s:
+            return RETOMAR_SILENCIO
+        if self._retomes == 1 and callado >= settings.silencio_cerrar_s:
+            return DESPEDIDA_FINAL
+        return None
+
+    async def _vigilar_silencio(self) -> None:
+        """Retoma la llamada cuando el paciente lleva rato callado, y la cierra.
+
+        El reconocedor sabe cuándo termina un turno, pero nadie medía «el
+        paciente lleva medio minuto sin decir nada». Cuando el turno de Vera
+        acaba sin pregunta —el mensaje de escalamiento, por ejemplo— el paciente
+        no sabe si le toca hablar, y la llamada se queda muerta. En una llamada
+        telefónica ese silencio es lo que hace colgar a la gente.
+
+        Cerrar también es lo que impide pagar una conexión abierta que nadie usa.
         """
         while True:
-            await asyncio.sleep(2)
-            ocupada = self.sonando or (self._generando and not self._generando.done())
-            if ocupada:
-                self._movimiento()
+            await asyncio.sleep(1.0)
+            if self.sonando or (self._generando and not self._generando.done()):
+                self._reloj()          # Vera está hablando: no hay silencio que contar
                 continue
-            quieto = asyncio.get_running_loop().time() - self._ultimo
-            if quieto >= settings.stt_inactividad_s:
-                await self._enviar({
-                    "type": "inactiva",
-                    "detalle": f"cerrada tras {int(quieto)}s sin voz, para no gastar crédito",
-                })
+            frase = self._que_decir_al_silencio(
+                asyncio.get_running_loop().time() - self._ultimo)
+            if frase is None:
+                continue
+            self._retomes += 1
+            self._n += 1
+            await self._decir_fija(frase, self._n)
+            self._reloj()
+            if self._retomes >= 2:
+                await self._enviar({"type": "adios", "detalle": "la llamada se cerró sola"})
                 return
 
     # ------------------------------------------------------------- la llamada
@@ -411,7 +459,8 @@ class SesionLlamada:
         await self._decir_fija(SALUDO, self._n)
         self._movimiento()
 
-        tareas = [asyncio.create_task(c) for c in (self._subida(), self._bajada(), self._reloj())]
+        tareas = [asyncio.create_task(c)
+                  for c in (self._subida(), self._bajada(), self._vigilar_silencio())]
         try:
             # La primera que termine manda: si el navegador cuelga no tiene
             # sentido seguir esperando turnos, y si AssemblyAI cierra no hay a

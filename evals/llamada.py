@@ -20,7 +20,7 @@ from types import SimpleNamespace
 import server.voz.sesion as sesion_mod
 from evals.turno import ModeloDeMentira
 from evals.voz import CartesiaDeMentira
-from server.dialogo.prompts import SALUDO
+from server.dialogo.prompts import DESPEDIDA_FINAL, RETOMAR_SILENCIO, SALUDO
 from server.voz.sesion import SesionLlamada
 from server.voz.stt import Turno
 from server.voz.tts import FrasesFijas, VozCartesia
@@ -174,6 +174,24 @@ async def main() -> int:
     oido.oye("y sigo igual de mal", orden=2)
     await asyncio.sleep(0.1)
     check("y no se repite en cada turno", len(ws.de_tipo("alerta")) == 1)
+
+    print("\n== El silencio del paciente ==")
+    sesion, ws, oido = await montar(ModeloDeMentira())
+    check("una pausa para pensar no se toca", sesion._que_decir_al_silencio(5) is None)
+    check("pasados 20 s, Vera retoma", sesion._que_decir_al_silencio(21) == RETOMAR_SILENCIO)
+    sesion._retomes = 1
+    check("si sigue callado, se despide y cierra",
+          sesion._que_decir_al_silencio(31) == DESPEDIDA_FINAL)
+    sesion._retomes = 2
+    check("y no insiste una tercera vez", sesion._que_decir_al_silencio(300) is None)
+
+    # Vera hablando no puede contar como que el paciente contestó: si contara,
+    # cada retome se anularía a sí mismo y la llamada no se cerraría nunca.
+    sesion._retomes = 1
+    sesion._reloj()
+    check("lo que dice Vera no reinicia los intentos", sesion._retomes == 1)
+    sesion._movimiento()
+    check("lo que dice el paciente sí", sesion._retomes == 0)
 
     ok = sum(resultados)
     print(f"\nRESULTADO: {ok}/{len(resultados)} comprobaciones de la llamada.")

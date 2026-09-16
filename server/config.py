@@ -45,9 +45,15 @@ class Settings(BaseSettings):
     # interrumpa a media idea, que en esta conversación vale más.
     stt_modo: str = "max_accuracy"
 
-    # Se factura por tiempo de conexión abierta, no por audio enviado. Un socket
-    # olvidado cuesta igual que una conversación. Esto lo cierra solo.
-    stt_inactividad_s: float = 45.0
+    # Cuánto aguanta Vera el silencio del paciente. 20 s para retomar: es mucho
+    # más que una pausa para pensar y bastante menos de lo que aguanta alguien al
+    # teléfono antes de creer que se cortó. Otros 30 s para cerrar, porque quien
+    # no contestó a la primera casi nunca contesta a la segunda.
+    #
+    # Cerrar la llamada también es lo que evita pagar una conexión abierta que
+    # nadie usa: AssemblyAI factura por tiempo, no por audio enviado.
+    silencio_retomar_s: float = 20.0
+    silencio_cerrar_s: float = 30.0
 
     # --- Modelo de lenguaje: Claude por el LLM Gateway de AssemblyAI ---
     # La misma clave de AssemblyAI; el gateway exige pago por uso habilitado.

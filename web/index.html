@@ -223,6 +223,7 @@ btn.onclick = async () => {
     if (m.type === 'error')    { estado.textContent = 'Error: ' + m.detalle; parar(); return; }
     if (m.type === 'inactiva') { estado.textContent = 'Llamada ' + m.detalle + '.'; parar(); return; }
     if (m.type === 'aviso')    { estado.textContent = 'Aviso: ' + m.detalle; return; }
+    if (m.type === 'adios')    { estado.textContent = 'Vera se despidió: ' + m.detalle + '.'; return; }
     if (m.type === 'listo') {
       estado.textContent = `Oyendo con ${m.stt} (${m.modo}) · piensa ${m.llm} · ` +
         (m.voz_sample_rate ? `habla con Cartesia a ${m.voz_sample_rate} Hz` : 'sin voz');

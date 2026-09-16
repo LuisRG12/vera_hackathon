@@ -73,3 +73,21 @@ DEGRADADO = (
     "Disculpe, estoy teniendo un problema técnico para consultar sus indicaciones. "
     "Voy a avisarle a su equipo clínico para que lo contacten."
 )
+
+# Cuando el paciente lleva rato sin decir nada. Dos escalones y no uno: el
+# primero retoma —quizá solo estaba pensando— y el segundo cierra, porque
+# insistir una tercera vez es el «disco rayado» que el proyecto original ya
+# corrigió dos veces. Después del cierre Vera no vuelve a hablar sola.
+RETOMAR_SILENCIO = "¿Sigue por ahí? Si hay algo más que quiera contarme, lo escucho."
+DESPEDIDA_FINAL = (
+    "Quedo atenta a lo que reporte su equipo clínico. Si algo cambia, "
+    "comuníquese con ellos directamente."
+)
+
+# Cuando el reconocedor se cae a mitad de llamada. Vera todavía puede hablar
+# —su voz es otro servicio—, así que lo dice en vez de colgar en silencio, y no
+# promete escuchar lo que ya no puede oír.
+SIN_OIDO = (
+    "Disculpe, se me cortó el audio y no puedo seguir escuchándolo. "
+    "Si tiene algo urgente, comuníquese con su equipo clínico."
+)

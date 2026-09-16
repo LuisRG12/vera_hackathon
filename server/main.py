@@ -20,7 +20,15 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 
 from server.config import settings
-from server.dialogo.prompts import DEGRADADO, DEGRADADO_CON_ALARMA, SALUDO, SIN_RESPUESTA
+from server.dialogo.prompts import (
+    DEGRADADO,
+    DEGRADADO_CON_ALARMA,
+    DESPEDIDA_FINAL,
+    RETOMAR_SILENCIO,
+    SALUDO,
+    SIN_OIDO,
+    SIN_RESPUESTA,
+)
 from server.dialogo.turno import Conversacion
 from server.modelo.llm import StructuredLLM
 from server.seguridad.lexico import LEXICON
@@ -34,7 +42,8 @@ WEB = Path(__file__).resolve().parent.parent / "web"
 # Lo que Vera dice escrito por el código. Se sintetiza al arrancar y queda en
 # disco: suena al instante y suena aunque Cartesia se caiga, que es justo cuando
 # más falta hacen la emergencia y los respaldos.
-FRASES_FIJAS = [SALUDO, EMERGENCIA, ACOMPANAR, DEGRADADO, DEGRADADO_CON_ALARMA, SIN_RESPUESTA]
+FRASES_FIJAS = [SALUDO, EMERGENCIA, ACOMPANAR, DEGRADADO, DEGRADADO_CON_ALARMA,
+                SIN_RESPUESTA, RETOMAR_SILENCIO, DESPEDIDA_FINAL, SIN_OIDO]
 
 
 @asynccontextmanager
