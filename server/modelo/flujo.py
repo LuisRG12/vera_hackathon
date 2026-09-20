@@ -100,9 +100,17 @@ class SentenceSplitter:
 
     `min_chars` evita mandar al sintetizador un jadeo de tres palabras cuando el
     modelo abre con una interjección corta.
+
+    **Doce y no veinticinco.** El número venía de Piper, que sintetizaba cada
+    frase por separado y hacía sonar rara una de tres palabras. Cartesia mete
+    todas las frases del turno en el mismo contexto, así que la entonación sigue
+    de una a otra y una frase corta ya no suena suelta. Bajarlo adelanta la
+    primera palabra que se oye, que es lo único que el paciente percibe como
+    espera: con veinticinco, un «Qué bien.» se quedaba esperando a la frase
+    siguiente para poder sonar.
     """
 
-    def __init__(self, min_chars: int = 25) -> None:
+    def __init__(self, min_chars: int = 12) -> None:
         self.pending = ""
         self.min_chars = min_chars
 
