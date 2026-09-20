@@ -50,9 +50,13 @@ OBJETIVO_NORMAL = "reconocer lo que dijo y dar seguimiento a cómo se siente"
 OBJETIVO_ALARMA = ("pedirle al paciente que contacte hoy mismo a su equipo clínico, "
                    "sin ofrecerle ayuda para hacerlo")
 
-# Intercambios recientes que ve el modelo para no perder el hilo. Pocos a
-# propósito: cada uno se paga en tokens y en tiempo hasta la primera frase.
-INTERCAMBIOS = 3
+# Intercambios recientes que ve el modelo para no perder el hilo. Ocho, no tres:
+# con tres, en una llamada de quince turnos Vera ya no se acuerda de la fiebre
+# que el paciente le contó al principio. El proyecto original compensaba eso con
+# un resumen del estado de la llamada que aquí todavía no existe, y mientras
+# tanto lo barato es darle más historia: cada intercambio son unos sesenta
+# tokens, que no se notan ni en el costo ni en el tiempo hasta la primera frase.
+INTERCAMBIOS = 8
 
 
 class RespuestaVera(BaseModel):

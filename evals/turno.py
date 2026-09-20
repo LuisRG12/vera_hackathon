@@ -15,7 +15,7 @@ import asyncio
 import sys
 
 from server.dialogo.prompts import DEGRADADO, DEGRADADO_CON_ALARMA, SIN_RESPUESTA
-from server.dialogo.turno import OBJETIVO_ALARMA, Conversacion
+from server.dialogo.turno import INTERCAMBIOS, OBJETIVO_ALARMA, Conversacion
 from server.modelo.llm import LLMError
 from server.seguridad.esquemas import RiskAssessment
 from server.seguridad.respuestas import ACOMPANAR, EMERGENCIA
@@ -143,11 +143,14 @@ async def main() -> int:
     print("\n== Lo que pasa de un turno al siguiente ==")
     m = ModeloDeMentira()
     conv = Conversacion(m)
-    for texto in ("uno", "dos", "tres", "cuatro"):
-        await turno(conv, f"turno {texto}")
-    check("el modelo ve pocos intercambios", len(conv.historial) == 6, str(len(conv.historial)))
-    check("y el más reciente es el último", conv.historial[-2]["content"] == "turno cuatro")
-    check("el juez recibe el turno anterior", m.ultimo_previo_al_juez == "turno tres",
+    for i in range(INTERCAMBIOS + 4):
+        await turno(conv, f"turno {i}")
+    check("el historial se recorta y no crece sin límite",
+          len(conv.historial) == 2 * INTERCAMBIOS, str(len(conv.historial)))
+    check("y el más reciente es el último",
+          conv.historial[-2]["content"] == f"turno {INTERCAMBIOS + 3}")
+    check("el juez recibe el turno anterior",
+          m.ultimo_previo_al_juez == f"turno {INTERCAMBIOS + 2}",
           str(m.ultimo_previo_al_juez))
 
     # Pero no el que ya escaló: ya se valoró, y dárselo hacía que el juez volviera
