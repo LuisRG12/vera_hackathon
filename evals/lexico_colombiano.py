@@ -172,6 +172,13 @@ POSITIVOS = [
     ("Cuando iba para el baño me dio un yeyo.", "perdida_conciencia", "critical"),
     ("Y pues en ese momento tengo dolor en el pecho, no sé si eso puede ser grave.",
      "dolor_toracico", "critical"),
+
+    # --- señalarse dónde duele no puede desactivar la regla ---
+    # «siento una presión en el pecho» disparaba emergencia y «siento una presión
+    # AQUÍ en el pecho» no disparaba nada: el juez lo veía y el tope le impedía
+    # declarar la emergencia, así que el caso se perdía entre las dos capas.
+    ("siento como una presión aquí en el pecho que me agarra", "dolor_toracico", "critical"),
+    ("tengo un dolor ahí en el pecho desde anoche", "dolor_toracico", "critical"),
 ]
 
 # Frases que NO deben disparar nada. Un agente que escala con todo es ruido.
@@ -184,6 +191,8 @@ NEGATIVOS = [
     ("La temperatura bien, tengo 40 años.", "la cifra es la edad"),
     ("No tengo 39 de temperatura.", "cifra de fiebre, negada"),
     ("La temperatura me bajó a 36.", "temperatura normal"),
+    ("aquí estoy bien, gracias", "señalar un sitio no es un síntoma"),
+    ("me duele acá la herida", "molestia de la herida, esperable"),
     # Voz real: la negación con muletillas alrededor. Si «como» ya no parte un
     # término, tampoco puede partir la negación y volverla un síntoma.
     ("Pero ahora pues ya no tengo fiebre ni escalofríos.", "negación, voz real"),

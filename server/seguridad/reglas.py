@@ -56,11 +56,16 @@ def _sin_tildes(s: str) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
-# Muletillas: palabras que un paciente colombiano mete en medio de lo que cuenta
-# sin que cambien lo que dice. Con voz real, «la herida está botando como
-# materia» no disparaba: ese «como» partía la frase que el léxico conoce. La voz
-# sintética nunca las dice, por eso no salieron antes. Solo las que se oyeron.
-_MULETILLAS = r"(?:como|pues)"
+# Palabras que un paciente mete en medio de lo que cuenta sin que cambien lo que
+# dice. Con voz real, «la herida está botando como materia» no disparaba: ese
+# «como» partía la frase que el léxico conoce. La voz sintética nunca las dice,
+# por eso no salieron antes.
+#
+# «aquí», «ahí» y «acá» entraron por el caso más grave posible: «siento una
+# presión en el pecho» dispara emergencia y «siento una presión AQUÍ en el
+# pecho» no disparaba nada. Señalarse dónde duele es lo que hace cualquiera
+# hablando, y la palabra no cambia el síntoma.
+_MULETILLAS = r"(?:como|pues|aqu[ií]|ah[ií]|ac[aá])"
 
 # Lo que puede ir entre dos palabras de un término: espacio, la coma con que
 # AssemblyAI marca una duda, el guion con que une lo que cree un compuesto
