@@ -63,19 +63,43 @@ Reconectar la capa determinista sobre el texto de AssemblyAI.
       mostrar —muletillas, «yeyo» y el dolor de pecho oído como «brazo»—, ya
       cubiertos
 
-## Etapa 4 — El conocimiento
+## Etapa 4 — El conocimiento · *la siguiente*
+
+Hasta aquí Vera pregunta, reconoce y escala, pero no puede afirmar nada clínico:
+sin documentos, la instrucción de cada turno le prohíbe hablar del tratamiento,
+la herida o la medicación. Esto es lo que le falta para cumplir la promesa del
+producto —responder solo con lo que dicen los documentos del paciente, citando
+cuál—.
+
+Dos cosas ya medidas que condicionan el diseño (ver la bitácora del 13 de
+septiembre): el esquema de la respuesta **no puede cambiar en cada turno**,
+porque compilar uno nuevo cuesta casi un segundo; y enumerar en el esquema los
+fragmentos citables **no garantiza que la cita sea cierta** —con el fragmento
+correcto fuera de la lista, el modelo citó los otros tres de tres—. Las citas se
+verifican con código.
 
 - [ ] Corpus de guías clínicas de libre redistribución, seleccionado
 - [ ] Índice reconstruido y umbrales verificados
 - [ ] Citas resolviendo al documento correcto
 - [ ] **Prueba a mano:** preguntar algo del documento y verificar la cita
 
-## Etapa 5 — La llamada completa
+## Etapa 5 — La llamada completa ✅
 
-- [ ] Bucle full-duplex con barge-in
-- [ ] Turn detection semántico afinado
-- [ ] Degradación definida si se cae la red a mitad de llamada
-- [ ] **Prueba a mano:** una llamada entera de principio a fin
+> Se adelantó a la etapa 4: el reto es de voz, y juntar el oído, la cabeza y la
+> voz antes que el conocimiento saca a la luz los problemas de latencia y de
+> turnos, que son los que condicionan todo lo demás. El conocimiento entra
+> después sin rediseñar nada.
+
+- [x] Bucle full-duplex con barge-in: el paciente la calla en cuanto toma la
+      palabra, y lo que ya estaba sonando en el navegador se tira
+- [x] Filtro de eco, para que el micrófono oyéndola a ella no sea un turno del
+      paciente —ni una alarma—
+- [x] Turn detection semántico: `max_accuracy` aguanta las pausas del paciente,
+      y la interrupción se dispara con dos palabras suyas
+- [x] Degradación definida: sin oído lo dice y cierra, sin voz sigue por texto y
+      reintenta, sin modelo responde el respaldo escrito por el código
+- [x] **Prueba a mano:** llamada entera por voz, con alarma, interrupción,
+      silencio y parlantes
 
 ## Etapa 6 — Que el juez pueda tocarlo
 

@@ -163,3 +163,63 @@ dolor de pecho del turno previo. Pedirle que no lo hiciera no bastó. Lo que
 funcionó fue no mostrarle un turno anterior que ya había escalado, porque ese ya
 se valoró y ya avisó. Con eso, a la misma pregunta la marcó grave por la razón
 correcta: duplicar un opioide por su cuenta.
+
+---
+
+## 15 al 20 de septiembre — la llamada
+
+**El orden cambió.** La etapa de la llamada se adelantó a la del conocimiento.
+El reto es de voz, y juntar el oído, la cabeza y la voz antes que los documentos
+saca a la luz lo que de verdad condiciona el diseño: cuánto tarda Vera en
+contestar y qué pasa cuando dos personas hablan a la vez. El conocimiento entra
+después sin tener que rediseñar nada.
+
+**La voz.** AssemblyAI no vende síntesis por separado; su voz solo existe dentro
+del Voice Agent API, que es justo lo que este proyecto descartó. El camino del
+reto que seguimos dice «traiga su propio modelo y su propia voz», y el ejemplo
+que AssemblyAI publica empareja su reconocedor con Cartesia. Ahí había voces
+colombianas nativas: se oyeron las cuatro con el saludo y con el mensaje de
+emergencia, y se eligió Mariana, de tono calmado. El primer trozo de audio llega
+en dos décimas de segundo.
+
+**Lo que dice el código se sintetiza una vez.** El saludo, la emergencia, los
+respaldos: se conocen de antemano, así que se sintetizan al arrancar y quedan
+guardados. Suenan al instante —la emergencia empieza a sonar veinticinco
+milisegundos después de que el paciente termina de hablar— y siguen sonando
+aunque el servicio de voz se caiga, que es cuando más falta hacen.
+
+**Callar no es cancelar.** El defecto más instructivo de la etapa. Interrumpir
+cancelaba lo que faltaba por generar, y eso no era nada cuando la frase era fija
+o cuando el modelo ya había terminado: el audio seguía sonando en el navegador y
+la frase del paciente quedaba haciendo cola detrás. Probándolo con voz se oía
+clarísimo. Ahora interrumpir tira el audio que ya está en el navegador, haya o no
+algo que cancelar.
+
+**Y cancelar la respuesta no puede cancelar la seguridad.** El turno que el
+paciente interrumpe se cierra igual con la valoración del juez, que ya venía en
+camino. Era el único turno de la llamada que se quedaba sin la segunda capa, y
+suele ser justo el turno en que el paciente tiene algo más que contar.
+
+**El eco.** Con parlantes, el micrófono oye a Vera y el reconocedor la transcribe
+como si hablara el paciente. El filtro del proyecto original reconoce lo que ella
+acaba de decir y lo descarta, con una excepción que viene de una llamada real: un
+signo crítico nunca se descarta. Importa más de lo que parece, porque Vera repite
+los síntomas que le cuentan: sin filtro, se levantaría una emergencia a sí misma.
+Probado con parlantes, aguantó.
+
+**El silencio.** A los veinte segundos pregunta si sigue ahí; treinta después se
+despide y cierra. No insiste una tercera vez, y su propia voz no cuenta como que
+el paciente contestó.
+
+**Reglas viejas que ya no servían.** Revisando lo heredado aparecieron tres. La
+prohibición de abrir diciendo «Entiendo» venía de un modelo que empezaba así
+todos los turnos; con Haiku, reconocer lo que le cuentan suena a persona, y lo
+que se prohíbe ahora es repetir la misma apertura. El modelo veía tres
+intercambios de historia, así que a mitad de llamada ya no recordaba la fiebre
+del principio. Y la frase mínima para empezar a hablar estaba calibrada para la
+voz anterior, que sintetizaba cada frase suelta.
+
+La cuarta fue la más seria y no era vieja sino incompleta: el léxico reconoce
+«presión en el pecho» y no reconocía «presión **aquí** en el pecho». Señalarse
+dónde duele es lo que hace cualquiera hablando, y esa palabra de más dejaba el
+signo más grave sin alerta.
