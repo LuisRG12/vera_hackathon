@@ -195,20 +195,44 @@ class Recuperador:
         self.indice = indice
         self.embedder = embedder
         self.rrf_k = rrf_k
+
+        # **La compuerta de procedimiento se aplica una vez, al abrir el índice,
+        # y no en cada consulta.** Lo que no es de la cirugía de este paciente no
+        # es que puntúe peor: es que no existe para esta llamada, así que
+        # tampoco debe contar en las estadísticas de BM25 ni ocupar un puesto en
+        # el ranking. Filtrar después dejaría al documento ajeno influyendo en
+        # los puntajes de los propios.
+        #
+        # Los documentos sin procedimiento pasan siempre: la fiebre es la fiebre
+        # y el acetaminofén es el mismo, opere quien opere.
+        #
+        # Por qué importa, y no es precisión sino seguridad clínica: los
+        # protocolos postoperatorios comparten casi todo el vocabulario, así que
+        # la guía de otra cirugía gana el top-k de cualquier pregunta. En la
+        # conversación de ensayo, a una paciente de colecistectomía que dijo que
+        # la herida botaba materia, Vera le respondió citando la sección
+        # «Absceso» de la guía de **apendicitis**.
+        procedimiento = indice.procedimiento
+        indices = [i for i, f in enumerate(indice.fragmentos)
+                   if f.procedimiento in (None, procedimiento)]
+        self.procedimiento = procedimiento
+        self.fragmentos = [indice.fragmentos[i] for i in indices]
+        self.vectores = indice.vectores[indices] if indices else indice.vectores
+
         # BM25 se construye una vez: el corpus no cambia mientras el proceso vive.
         # En el proyecto original se rehacía en cada consulta porque el índice sí
         # cambiaba —el evaluador subía documentos a mitad de llamada—, y eso
         # costaba milisegundos sobre diez mil fragmentos. Aquí sería pagar por una
         # flexibilidad que este corpus no tiene.
-        self._bm25 = BM25Okapi([_tok(f.texto) for f in indice.fragmentos])
+        self._bm25 = BM25Okapi([_tok(f.texto) for f in self.fragmentos])
 
     def consultar(self, texto: str, k: int | None = None) -> Recuperado:
         k = k or settings.k_recuperados
-        fragmentos = self.indice.fragmentos
+        fragmentos = self.fragmentos
         if not fragmentos:
             return Recuperado([], False, 0.0, 0)
 
-        denso = _coseno(self.indice.vectores, self.embedder.consulta(texto))
+        denso = _coseno(self.vectores, self.embedder.consulta(texto))
         disperso = np.asarray(self._bm25.get_scores(_tok(texto)), dtype=np.float32)
 
         rd, rs = _rangos(denso), _rangos(disperso)

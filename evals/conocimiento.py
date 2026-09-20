@@ -51,7 +51,7 @@ DENTRO = [
      "calculos_biliares_tratamiento.md"),
     ("¿cuánto me demoro en recuperarme de la operación de la vesícula?",
      "calculos_biliares_tratamiento.md"),
-    ("¿qué es una apendicectomía?", "apendicitis_tratamiento.md"),
+    ("¿qué es una colecistectomía?", "calculos_biliares_tratamiento.md"),
     ("¿el acetaminofén sirve para la fiebre?", "fiebre.md"),
     ("¿qué hago si no he podido hacer del cuerpo?", "estrenimiento.md"),
     # Entró aquí después de escribirla como pregunta fuera de corpus: el arnés la
@@ -97,17 +97,32 @@ FUERA_CLINICO = [
     # justamente la inferencia que este sistema no le permite. Un límite en el
     # documento no es una respuesta a la pregunta.
     "¿puedo levantar a mi nieto?",
+    # La compuerta de procedimiento. El corpus SÍ tiene esta respuesta, pero en
+    # la guía de apendicitis, y esta paciente es de vesícula: para esta llamada
+    # esos documentos no existen. Si alguna vez se responde, la compuerta se
+    # rompió y lo que sale por ahí es material de otra cirugía.
+    "¿me van a quitar el apéndice?",
 ]
 
-# **Administrativas.** El corpus tampoco las responde, pero lo que Vera diría si
-# las diera por respondidas no es una afirmación clínica: saldría del plan de
-# egreso y sería cierta, solo que ajena a lo preguntado. El umbral no las separa
+# **Residuales.** El corpus tampoco las responde, pero lo que Vera diría si las
+# diera por respondidas no es una afirmación clínica inventada: saldría del plan
+# de egreso y sería cierta, solo que ajena a lo preguntado. El umbral no las separa
 # —puntúan entre 0,833 y 0,840, entre medio de preguntas legítimas— y forzarlo
 # hasta que caigan cuesta cinco respuestas buenas. Se miden y se reportan, pero
 # no tumban el arnés: de estas se encarga la verificación de la cita, que deja
 # constancia de con qué fragmento respondió, y el prompt, que le prohíbe ofrecer
 # lo que no tiene.
 FUERA_ADMINISTRATIVO = [
+    # Esta empezó en el grupo de arriba, como segunda prueba de la compuerta, y
+    # se movió aquí al ver lo que de verdad medía. Con la compuerta puesta, los
+    # documentos de apendicitis ya no existen para esta llamada —eso funciona—,
+    # pero la pregunta cae entonces sobre el plan de egreso de la paciente, que
+    # también habla de una cirugía, y puntúa 0,843. Lo que queda no es material
+    # de otra cirugía filtrándose: es su propio documento respondiendo a una
+    # pregunta que no era la suya. Lo que falta para cerrarlo es reconocer que
+    # el paciente está preguntando por OTRO procedimiento, que es trabajo del
+    # léxico y no del umbral. Queda anotado y visible.
+    "¿cuánto dura la cirugía de apendicitis?",
     "¿cuánto cuesta la consulta de control?",
     "¿me puede dar el teléfono del doctor?",
     "¿cuál es la clave del wifi?",
@@ -167,8 +182,9 @@ def _detalle(dentro, fuera, umbral: float, lexico: int) -> None:
             fuente = f"OTRA FUENTE ({vistos[0]})"
         print(f"  {r.max_denso:.3f} lex={r.solape_lexico}  {estado:12s} {fuente:28s} {pregunta}")
 
-    for etiqueta, grupo in (("FUERA DE CORPUS · CLÍNICAS", FUERA_CLINICO),
-                            ("FUERA DE CORPUS · ADMINISTRATIVAS", FUERA_ADMINISTRATIVO)):
+    grupos = (("FUERA DE CORPUS · CLÍNICAS", FUERA_CLINICO),
+              ("FUERA DE CORPUS · RESIDUALES (no tumban el arnés)", FUERA_ADMINISTRATIVO))
+    for etiqueta, grupo in grupos:
         print(f"\n{etiqueta}")
         for pregunta, r in fuera:
             if pregunta not in grupo:
@@ -187,6 +203,8 @@ def main() -> int:
     indice = Indice.cargar()
     rec = Recuperador(indice, Embedder())
     print(f"{len(indice)} fragmentos · {len(indice.documentos)} documentos · {indice.modelo}")
+    print(f"llamada de {rec.procedimiento or 'procedimiento sin declarar'}: "
+          f"{len(rec.fragmentos)} fragmentos citables")
 
     dentro, fuera = _medir(rec)
     if args.barrido:

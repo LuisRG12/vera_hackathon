@@ -49,6 +49,15 @@ NIDDK = ("Instituto Nacional de la Diabetes y las Enfermedades Digestivas y "
          "Renales (NIDDK), NIH")
 DOMINIO_PUBLICO = "dominio público (obra del gobierno federal de EE. UU.), con atribución"
 
+# El procedimiento al que pertenece cada documento, cuando pertenece a alguno.
+# Un documento **sin** procedimiento es válido para cualquier paciente —la fiebre
+# es la fiebre— y uno con procedimiento solo se le puede citar a quien pasó por
+# esa cirugía. No es afinar la precisión: es que a una paciente de vesícula no se
+# le responda con la guía de apendicitis, que es lo que pasó en la conversación
+# de ensayo (ver `Recuperador.consultar`).
+COLE = "colecistectomia"
+APENDI = "apendicectomia"
+
 # Los temas de MedlinePlus que cubren una llamada de seguimiento postoperatorio:
 # la cirugía y su recuperación, la herida y sus signos de infección, y los
 # síntomas por los que un paciente llama —fiebre, dolor, sangrado, náusea,
@@ -58,42 +67,49 @@ DOMINIO_PUBLICO = "dominio público (obra del gobierno federal de EE. UU.), con 
 # MedlinePlus renombra un tema, este script falla en voz alta en vez de escribir
 # un corpus con un hueco.
 TEMAS = [
-    "Después de una cirugía",
-    "Cirugía",
-    "Anestesia",
-    "Apendicitis",
-    "Enfermedades de la vesícula biliar",
-    "Heridas y lesiones",
-    "Cicatriz",
-    "Infecciones de la piel",
-    "Fiebre",
-    "Hemorragia",
-    "Dolor",
-    "Analgésicos",
-    "Uso seguro de opioides",
-    "Antibióticos",
-    "Coágulos sanguíneos",
-    "Trombosis venosa profunda",
-    "Estreñimiento",
-    "Náusea y vómitos",
-    "Deshidratación",
+    # Los generales: le sirven a cualquier paciente operado, opere de lo que
+    # opere, así que no llevan procedimiento y se pueden citar siempre.
+    ("Después de una cirugía", None),
+    ("Cirugía", None),
+    ("Anestesia", None),
+    ("Heridas y lesiones", None),
+    ("Cicatriz", None),
+    ("Infecciones de la piel", None),
+    ("Fiebre", None),
+    ("Hemorragia", None),
+    ("Dolor", None),
+    ("Analgésicos", None),
+    ("Uso seguro de opioides", None),
+    ("Antibióticos", None),
+    ("Coágulos sanguíneos", None),
+    ("Trombosis venosa profunda", None),
+    ("Estreñimiento", None),
+    ("Náusea y vómitos", None),
+    ("Deshidratación", None),
+    # Los de una enfermedad concreta van con su procedimiento. Un tema sobre la
+    # apendicitis no es material general: a una paciente de vesícula no le
+    # responde nada y sí le gana el top-k, que es como Vera terminó citando la
+    # guía de apendicitis en la conversación de ensayo.
+    ("Apendicitis", APENDI),
+    ("Enfermedades de la vesícula biliar", COLE),
 ]
+
 
 # Páginas del NIDDK. Los temas de MedlinePlus son panorámicos y estas bajan al
 # detalle que un paciente pregunta por teléfono —cuánto tarda en volver a su vida
 # normal, qué le va a pasar al intestino sin vesícula—, que es donde el corpus
 # tiene que responder o Vera se abstiene.
 PAGINAS_NIDDK = [
-    ("calculos_biliares_tratamiento.md", "Tratamiento para los cálculos biliares",
+    ("calculos_biliares_tratamiento.md", "Tratamiento para los cálculos biliares", COLE,
      "https://www.niddk.nih.gov/health-information/informacion-de-la-salud/"
      "enfermedades-digestivas/calculos-bilares/tratamiento"),
-    ("calculos_biliares_sintomas.md", "Síntomas y causas de los cálculos biliares",
+    ("calculos_biliares_sintomas.md", "Síntomas y causas de los cálculos biliares", COLE,
      "https://www.niddk.nih.gov/health-information/informacion-de-la-salud/"
      "enfermedades-digestivas/calculos-bilares/sintomas-causas"),
-    ("apendicitis_tratamiento.md", "Tratamiento de la apendicitis",
+    ("apendicitis_tratamiento.md", "Tratamiento de la apendicitis", APENDI,
      "https://www.niddk.nih.gov/health-information/informacion-de-la-salud/"
      "enfermedades-digestivas/apendicitis/tratamiento"),
-    ("apendicitis_sintomas.md", "Síntomas y causas de la apendicitis",
+    ("apendicitis_sintomas.md", "Síntomas y causas de la apendicitis", APENDI,
      "https://www.niddk.nih.gov/health-information/informacion-de-la-salud/"
      "enfermedades-digestivas/apendicitis/sintomas-causas"),
 ]
@@ -177,7 +193,7 @@ def extraer_medlineplus(ruta_xml: Path) -> list[dict]:
     temas = {t.get("title"): t for t in raiz.findall("health-topic")
              if t.get("language") == "Spanish"}
     escritos = []
-    for titulo in TEMAS:
+    for titulo, procedimiento in TEMAS:
         tema = temas.get(titulo)
         if tema is None:
             raise KeyError(f"MedlinePlus ya no trae el tema «{titulo}»")
@@ -199,7 +215,8 @@ def extraer_medlineplus(ruta_xml: Path) -> list[dict]:
         nombre = _archivo(titulo)
         (DESTINO / nombre).write_text("\n".join(partes) + "\n", encoding="utf-8")
         escritos.append({"archivo": nombre, "titulo": titulo, "fuente": MEDLINEPLUS,
-                         "url": tema.get("url"), "licencia": DOMINIO_PUBLICO})
+                         "url": tema.get("url"), "licencia": DOMINIO_PUBLICO,
+                         "procedimiento": procedimiento, "del_paciente": False})
         print(f"  [ok] {nombre} ({len(cuerpo)} caracteres)")
     return escritos
 
@@ -245,13 +262,14 @@ def _podar_navegacion(texto: str) -> str:
 
 def extraer_nih() -> list[dict]:
     escritos = []
-    for nombre, titulo, url in PAGINAS_NIDDK:
+    for nombre, titulo, procedimiento, url in PAGINAS_NIDDK:
         cuerpo = _podar_navegacion(_texto_nih(_bajar(url)))
         if len(cuerpo) < 500:
             raise ValueError(f"«{titulo}» vino casi vacío ({len(cuerpo)} caracteres)")
         (DESTINO / nombre).write_text(f"# {titulo}\n\n{cuerpo}\n", encoding="utf-8")
         escritos.append({"archivo": nombre, "titulo": titulo, "fuente": NIDDK,
-                         "url": url, "licencia": DOMINIO_PUBLICO})
+                         "url": url, "licencia": DOMINIO_PUBLICO,
+                         "procedimiento": procedimiento, "del_paciente": False})
         print(f"  [ok] {nombre} ({len(cuerpo)} caracteres)")
     return escritos
 
@@ -284,7 +302,8 @@ def main() -> int:
             print(f"  [!] falta {nombre}; se declara igual en el manifiesto")
         documentos.append({"archivo": nombre, "titulo": titulo,
                            "fuente": "escrito para este proyecto", "url": None,
-                           "licencia": licencia})
+                           "licencia": licencia, "procedimiento": COLE,
+                           "del_paciente": True})
         print(f"  [ok] {nombre} (ficticio)")
 
     MANIFIESTO.write_text(json.dumps(

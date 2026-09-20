@@ -60,6 +60,12 @@ class Fragmento:
     # distinguir de un vistazo lo que respalda una guía publicada de lo que
     # respalda un plan de egreso inventado para la demo.
     ficticio: bool = False
+    # La cirugía de la que habla el documento, o None si vale para cualquiera.
+    procedimiento: str | None = None
+    # Si es un documento **de este paciente** —su plan de egreso— y no material
+    # de referencia. Es lo que fija de qué cirugía es la llamada: en producción
+    # se sabe a quién se llama y por qué operación, no se adivina hablando.
+    del_paciente: bool = False
 
 
 def documentos_declarados() -> dict[str, dict]:
@@ -99,6 +105,24 @@ class Indice:
     @property
     def documentos(self) -> set[str]:
         return {f.documento for f in self.fragmentos}
+
+    @property
+    def procedimiento(self) -> str | None:
+        """De qué cirugía es la llamada, según los documentos del paciente.
+
+        Sale del corpus y no de la conversación, que es como funciona el
+        producto: se sabe a quién se llama y por qué operación. El proyecto
+        original lo deducía hablando y tenía un agujero documentado —en la
+        llamada 88 el reconocedor oyó «más texto mía» por «mastectomía», el
+        procedimiento quedó sin confirmar y Vera explicó cómo lavar una herida
+        mamaria con material de apendicectomía—. Aquí ese momento no existe.
+
+        Si los documentos del paciente no coinciden en una sola cirugía, se
+        devuelve None y no se filtra nada: inventarse un procedimiento sería
+        peor que no tenerlo.
+        """
+        procedimientos = {f.procedimiento for f in self.fragmentos if f.del_paciente}
+        return procedimientos.pop() if len(procedimientos) == 1 else None
 
     def guardar(self, ruta: Path = INDICE) -> None:
         meta = {
@@ -159,7 +183,9 @@ def construir(embedder) -> Indice:
         for seccion, texto in trocear(ruta.read_text(encoding="utf-8")):
             fragmentos.append(Fragmento(
                 id=len(fragmentos), documento=archivo, titulo=meta["titulo"],
-                seccion=seccion, texto=texto, ficticio=ficticio))
+                seccion=seccion, texto=texto, ficticio=ficticio,
+                procedimiento=meta.get("procedimiento"),
+                del_paciente=bool(meta.get("del_paciente"))))
 
     vectores = np.stack(embedder.fragmentos([f.texto for f in fragmentos]))
     return Indice(fragmentos, vectores, embedder.nombre, huella_del_corpus())
