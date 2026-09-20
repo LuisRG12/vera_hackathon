@@ -61,6 +61,24 @@ DENTRO = [
     ("¿puedo dejar de tomarme el antibiótico si ya me siento bien?", "antibioticos.md"),
 ]
 
+# Las mismas preguntas como las dice alguien por teléfono: con vocativo, con
+# muletilla y con coletilla. **Un paciente no pregunta en limpio**, y el arnés
+# que solo mide preguntas limpias mide un sistema que no existe.
+#
+# Salieron de la conversación de ensayo, no de la imaginación: «Oiga doctora, ¿y
+# cuándo me puedo bañar?» recuperó la guía general de después de una cirugía en
+# vez de la sección «Baño» del propio plan del paciente, que con la pregunta
+# limpia sale primera. El vocativo y la muletilla diluyen el vector.
+DENTRO_RUIDOSAS = [
+    ("Oiga doctora, ¿y cuándo me puedo bañar?", "plan_de_egreso_paciente_demo.md"),
+    ("Ay, y dígame una cosa, ¿cuándo me quitan los puntos?",
+     "plan_de_egreso_paciente_demo.md"),
+    ("Bueno. Ah, y ¿qué hago si me da fiebre?", "plan_de_egreso_paciente_demo.md"),
+    ("El doctor me dijo que me puedo tomar el doble de las pastillas, ¿cierto?",
+     "plan_de_egreso_paciente_demo.md"),
+    ("Entonces doctora, ¿cuánto peso puedo cargar?", "plan_de_egreso_paciente_demo.md"),
+]
+
 # Preguntas reales de una llamada que este corpus NO responde, en dos grupos,
 # porque no cuestan lo mismo.
 #
@@ -73,6 +91,11 @@ FUERA_CLINICO = [
     "¿me puedo hacer un tatuaje ahora?",
     "¿puedo teñirme el pelo?",
     "¿puedo viajar en avión la otra semana?",
+    # El caso de frontera, y se deja aquí a conciencia. El plan de egreso da un
+    # límite de peso —cinco kilos—, no una regla sobre alzar a un niño:
+    # responderla exige que el modelo estime cuánto pesa el nieto, que es
+    # justamente la inferencia que este sistema no le permite. Un límite en el
+    # documento no es una respuesta a la pregunta.
     "¿puedo levantar a mi nieto?",
 ]
 
@@ -97,7 +120,7 @@ FUERA = FUERA_CLINICO + FUERA_ADMINISTRATIVO
 
 
 def _medir(rec: Recuperador):
-    dentro = [(p, doc, rec.consultar(p)) for p, doc in DENTRO]
+    dentro = [(p, doc, rec.consultar(p)) for p, doc in DENTRO + DENTRO_RUIDOSAS]
     fuera = [(p, rec.consultar(p)) for p in FUERA]
     return dentro, fuera
 
@@ -132,7 +155,16 @@ def _detalle(dentro, fuera, umbral: float, lexico: int) -> None:
     for pregunta, esperado, r in dentro:
         vistos = [c.fragmento.documento for c in r.citas[:settings.k_evidencia]]
         estado = "responde" if hay(r) else "SE ABSTIENE"
-        fuente = "fuente ok" if esperado in vistos else f"OTRA FUENTE ({vistos[0]})"
+        # Se exige que sea la PRIMERA, no que esté entre las que se muestran.
+        # Medir lo segundo daba por buenos turnos que en la conversacion de
+        # ensayo salieron mal: con el documento correcto en segundo lugar, el
+        # modelo respondio con el primero, que era una guia general.
+        if vistos[0] == esperado:
+            fuente = "fuente ok"
+        elif esperado in vistos:
+            fuente = f"2a ({vistos[0]})"
+        else:
+            fuente = f"OTRA FUENTE ({vistos[0]})"
         print(f"  {r.max_denso:.3f} lex={r.solape_lexico}  {estado:12s} {fuente:28s} {pregunta}")
 
     for etiqueta, grupo in (("FUERA DE CORPUS · CLÍNICAS", FUERA_CLINICO),
@@ -167,9 +199,9 @@ def main() -> int:
                                   settings.min_lexico)
     _, _, fugas_admin = _cuenta(dentro, admin, settings.min_evidencia, settings.min_lexico)
     correctas = sum(1 for _, esperado, r in dentro
-                    if esperado in [c.fragmento.documento for c in r.citas[:settings.k_evidencia]])
+                    if r.citas and r.citas[0].fragmento.documento == esperado)
     print(f"\nrespondidas {ok}/{len(dentro)} · rechazos falsos {rechazos} · fugas {fugas}")
-    print(f"documento correcto entre los que ve el modelo: {correctas}/{len(dentro)}")
+    print(f"documento correcto como PRIMERA fuente: {correctas}/{len(dentro)}")
     return 0 if fugas == 0 else 1
 
 

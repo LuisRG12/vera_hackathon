@@ -64,8 +64,51 @@ def _palabras(texto: str) -> set[str]:
             if len(p) >= 4 and p not in _VACIAS}
 
 
+# Palabras que BM25 no debe ver. No es la lista de parada de siempre: es la
+# consecuencia de para qué está BM25 aquí.
+#
+# **BM25 existe para clavar el término clínico exacto** —«pus», «fiebre», «38»—
+# que un modelo denso pequeño diluye. Si además le llegan los artículos, los
+# clíticos, los auxiliares y las muletillas del teléfono, ordena por ellos, y
+# como RRF fusiona **rangos**, ese orden inventado pesa lo mismo que el bueno.
+#
+# Dónde se vio, y es el caso que más importa de la demo: a «¿cuándo me puedo
+# bañar?» la sección «Baño» del plan del paciente es la **primera** en denso,
+# con 0,852; con el vocativo delante —«Oiga doctora, ¿y cuándo me puedo
+# bañar?»— sube a 0,865 y sigue siendo la primera. Y aun así Vera contestaba
+# citando la guía general de después de una cirugía: BM25 no tenía ni una
+# palabra de contenido que enganchar —«bañar» no aparece en el corpus, que dice
+# «ducharse»—, así que puntuó por «oiga», «me» y «puedo», y RRF hundió la
+# respuesta correcta.
+#
+# No se filtra por longitud, que sería lo cómodo: dejaría fuera «pus» y «38»,
+# que son exactamente lo que esta señal viene a recuperar.
+_FUNCIONALES = {
+    "el", "la", "los", "las", "un", "una", "unos", "unas", "lo", "al", "del",
+    "de", "a", "ante", "bajo", "con", "contra", "desde", "en", "entre", "hacia",
+    "hasta", "para", "por", "segun", "según", "sin", "sobre", "tras",
+    "y", "e", "o", "u", "ni", "que", "qué", "cual", "cuál", "quien", "quién",
+    "como", "cómo", "cuando", "cuándo", "donde", "dónde", "cuanto", "cuánto",
+    "porque", "pues", "si", "sí", "no", "me", "te", "se", "le", "les", "nos",
+    "mi", "mis", "tu", "tus", "su", "sus", "yo", "usted", "ustedes",
+    "ella", "ellos", "este", "esta", "esto", "estos", "estas", "ese", "esa",
+    "eso", "esos", "esas", "aqui", "aquí", "ahi", "ahí", "alli", "allí", "aca",
+    "acá", "muy", "mas", "más", "menos", "ya", "tambien", "también", "solo",
+    "sólo", "todo", "toda", "todos", "todas", "algo", "alguna", "alguno",
+    "algunas", "algunos", "nada", "otro", "otra", "otros", "otras",
+    "es", "son", "era", "fue", "ser", "estar", "está", "están", "estoy", "estan",
+    "he", "ha", "han", "hay", "habia", "había", "tengo", "tiene", "tienen",
+    "tener", "puedo", "puede", "pueden", "pueda", "podria", "podría", "debo",
+    "debe", "deben", "hacer", "hago", "hace", "va", "van", "voy", "ir",
+    # Muletillas y vocativos del teléfono. Nunca son contenido clínico, y son
+    # justo lo que un paciente pone delante de la pregunta.
+    "oiga", "oye", "hola", "buenas", "bueno", "listo", "entonces", "ahora",
+    "pero", "ay", "ah", "eh", "mire", "digame", "dígame", "vera", "gracias",
+}
+
+
 def _tok(s: str) -> list[str]:
-    return re.findall(r"\w+", s.lower())
+    return [t for t in re.findall(r"\w+", s.lower()) if t not in _FUNCIONALES]
 
 
 def _coseno(mat: np.ndarray, vec: np.ndarray) -> np.ndarray:
@@ -106,6 +149,37 @@ def _rangos(puntajes: np.ndarray) -> np.ndarray:
     return rangos
 
 
+def _diversificar(citas: list[Cita], k: int) -> list[Cita]:
+    """Reordena para que entre los `k` que ve el modelo no se repita documento.
+
+    **Un documento largo copa el top-k y esconde a los demás.** Medido sobre este
+    corpus: a «me puedo tomar el doble de las pastillas» los tres fragmentos que
+    veía el modelo eran tres trozos casi idénticos de la guía de opioides —un
+    documento de sesenta líneas que domina cualquier pregunta sobre
+    medicación—, y el plan de egreso del paciente, que dice textualmente que no
+    cambie la dosis por su cuenta, no aparecía. El presupuesto de contexto se
+    gastaba tres veces en la misma fuente.
+
+    Con un fragmento por documento, sobre el arnés entero, las respuestas se
+    mantienen y la fuente correcta pasa de 17 a 19 de 21, sin abrir ninguna fuga.
+
+    No es una regla de precisión sino de **cobertura**: k fragmentos de k fuentes
+    distintas le dan al modelo más de dónde responder, y a quien audita, más de
+    dónde comprobar. Si no hay k documentos distintos, se rellena con los
+    mejores que queden: quedarse corto sería peor que repetir.
+    """
+    primeros: list[Cita] = []
+    resto: list[Cita] = []
+    vistos: set[str] = set()
+    for c in citas:
+        if len(primeros) < k and c.fragmento.documento not in vistos:
+            vistos.add(c.fragmento.documento)
+            primeros.append(c)
+        else:
+            resto.append(c)
+    return primeros + resto
+
+
 @dataclass
 class Recuperado:
     """Lo recuperado y si alcanza para afirmar algo."""
@@ -142,7 +216,7 @@ class Recuperador:
 
         citas = [Cita(fragmentos[i], float(denso[i]), float(disperso[i]), float(rrf[i]))
                  for i in np.argsort(-rrf)[:k]]
-        return self._veredicto(texto, citas)
+        return self._veredicto(texto, _diversificar(citas, settings.k_evidencia))
 
     def _veredicto(self, texto: str, citas: list[Cita]) -> Recuperado:
         """Si lo recuperado constituye evidencia suficiente.

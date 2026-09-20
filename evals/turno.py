@@ -20,6 +20,7 @@ from server.dialogo.prompts import (
     DEGRADADO,
     DEGRADADO_CON_ALARMA,
     SIN_CONTEXTO,
+    SIN_EVIDENCIA,
     SIN_INFORMACION,
     SIN_RESPUESTA,
 )
@@ -250,6 +251,18 @@ async def main() -> int:
     check("queda marcada como sin evidencia",
           t.marca == "sin_evidencia" and t.redactado_por == "codigo", t.marca)
     check("y sin citas, porque no afirmó nada", t.citas == [])
+
+    # Una alarma y una pregunta caben en el mismo turno. Ahí la abstención sería
+    # la peor respuesta: deja al paciente con una infección y una nota
+    # administrativa. Escalar no depende de tener documentos.
+    m = ModeloDeMentira(respuesta="Eso necesita que hable hoy con su equipo clínico.")
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=False))
+    frases, t = await turno(conv, "se me puso la herida roja y con pus, ¿eso es normal?")
+    check("con un signo de alarma NO se abstiene", frases != [SIN_INFORMACION], str(frases))
+    check("y el objetivo del turno sigue siendo encaminarlo al equipo",
+          OBJETIVO_ALARMA in m.ultimo_prompt)
+    check("pero se le prohíbe apoyarse en un contexto que no responde",
+          SIN_EVIDENCIA in m.ultimo_prompt)
 
     # Lo que NO es pregunta ni dispara reglas no paga la recuperación: el
     # embedding de la consulta va en la ruta crítica del turno.

@@ -206,7 +206,16 @@ class Conversacion:
         # diferencia entre pedirle que se abstenga y no darle la oportunidad de
         # no hacerlo: con fragmentos delante y sin evidencia, está medido que
         # afirma sobre ellos igual. Lo que se dice aquí lo escribe el código.
-        if recuperado is not None and not hay_evidencia and es_pregunta(texto):
+        #
+        # **Salvo con una alarma delante.** Un signo de alarma y una pregunta
+        # caben en el mismo turno —«se me puso roja la herida, ¿eso es normal?»—
+        # y ahí «eso no lo tengo en sus documentos» sería la peor respuesta
+        # posible: deja al paciente con una infección y una nota administrativa.
+        # Con `high`, el objetivo del turno ya es encaminarlo a su equipo hoy
+        # mismo, y el modelo lo redacta bajo la instrucción que le prohíbe
+        # afirmar nada clínico. Se abstiene de afirmar, no de escalar.
+        if (recuperado is not None and not hay_evidencia and es_pregunta(texto)
+                and severidad != "high"):
             lat["primera_frase_ms"] = _ms(t0)
             dichas.append(SIN_INFORMACION)
             yield "speak", SIN_INFORMACION

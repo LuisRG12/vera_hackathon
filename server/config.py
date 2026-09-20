@@ -96,24 +96,28 @@ class Settings(BaseSettings):
     k_evidencia: int = 3
 
     # El umbral de evidencia: por debajo, Vera no afirma nada clínico. Calibrado
-    # contra ESTE corpus con `evals/conocimiento.py`:
+    # contra ESTE corpus con `evals/conocimiento.py`, sobre 21 preguntas dentro
+    # de corpus —la mitad con el ruido del habla real— y 11 fuera:
     #
-    #   0.81 -> 16/16 respondidas, 0 rechazos falsos, 5 fugas
-    #   0.82 -> 15/16 respondidas, 1 rechazo falso,   3 fugas (ninguna clínica)
-    #   0.84 -> 11/16 respondidas, 5 rechazos falsos, 1 fuga
+    #   0.81 -> 21/21 respondidas, 15 con la fuente correcta, 4 fugas clínicas
+    #   0.82 -> 19/21 respondidas, 14 con la fuente correcta, 1 fuga clínica
+    #   0.83 -> 17/21 respondidas, 13 con la fuente correcta, 0 fugas clínicas
+    #   0.84 -> 15/21 respondidas, 12 con la fuente correcta, 0 fugas clínicas
     #
-    # Se queda 0,82: es donde las fugas clínicas llegan a cero —«¿puedo tomar
-    # cerveza?», que es el error que el proyecto original sí cometió, se abstiene
-    # con 0,817— y las tres que quedan son administrativas: el seguro, la
-    # incapacidad y el costo de la consulta. Esas no las separa ningún umbral
-    # —puntúan entre medio de preguntas legítimas— y subirlo hasta que caigan
-    # cuesta cinco respuestas buenas; de ellas se encarga la cita verificada.
+    # Se queda 0,83: es donde las fugas clínicas llegan a cero. «¿Puedo tomar
+    # cerveza?» —el error que el proyecto original sí cometió en una llamada
+    # real— se abstiene con 0,817. Lo que queda son tres preguntas
+    # administrativas (el seguro, la incapacidad, el costo de la consulta) que
+    # ningún umbral separa, porque puntúan entre medio de preguntas legítimas;
+    # de esas se encarga la cita verificada, que deja constancia de con qué
+    # fragmento respondió.
     #
-    # OJO: el número NO transfiere. Ni entre modelos de embeddings ni entre
-    # corpus, porque es un coseno contra los textos concretos que hay indexados.
-    # Que coincida con el 0,82 del proyecto original es casualidad: allá eran
-    # PDFs académicos, y aquí hasta el *pooling* del modelo es otro.
-    min_evidencia: float = 0.82
+    # OJO: el número NO transfiere. Ni entre modelos de embeddings, ni entre
+    # corpus, ni siquiera entre versiones de esta misma capa: al dejar de
+    # alimentar BM25 con palabras vacías, el umbral tuvo que subir de 0,82 a
+    # 0,83, porque cambia qué fragmentos quedan arriba y `max_denso` se mide
+    # sobre los que ve el modelo. Se remide con el arnés, no se hereda.
+    min_evidencia: float = 0.83
 
     # La otra mitad del veredicto: términos clínicos exactos compartidos entre la
     # pregunta y un fragmento. Rescata lo que el modelo denso diluye —«pus»,
