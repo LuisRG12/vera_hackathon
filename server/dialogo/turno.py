@@ -7,10 +7,14 @@ El orden es la promesa del sistema:
    habla, y si no llega, la decisión sale igual con las reglas.
 3. Si las reglas ven una emergencia, lo que se dice lo escribe el código, al
    instante y sin generar nada.
-4. Si no, el modelo responde en streaming y se dice frase a frase.
-5. Si el modelo falla, un texto de respaldo escrito por el código. Si no dijo
+4. Se recuperan los fragmentos del corpus, y **el código decide** si constituyen
+   evidencia. Si el paciente preguntó algo que el corpus no responde, la
+   respuesta también la escribe el código: el modelo no llega a verla.
+5. Si no, el modelo responde en streaming y se dice frase a frase.
+6. Si el modelo falla, un texto de respaldo escrito por el código. Si no dijo
    nada, otro: callar no es una respuesta en una llamada.
-6. Al final se combinan las dos capas.
+7. La cita se verifica contra los fragmentos que se le mostraron en este turno.
+8. Al final se combinan las dos capas.
 
 Cuando solo el juez ve el riesgo, la respuesta ya se estaba generando sin saberlo:
 lo que corre en paralelo no puede cambiar lo que ya se dijo. Por eso la alerta al
@@ -18,8 +22,8 @@ equipo sale de la decisión combinada y no de lo que Vera dijo, y el prompt le p
 al modelo que ante un signo de alarma encamine al equipo por su cuenta.
 
 Es la forma de `DialogueManager.stream_turn` en vera_voice_agent, sin lo que
-depende de etapas que todavía no están: el estado de la llamada y las preguntas de
-seguimiento, los documentos y las citas.
+depende de etapas que todavía no están: el estado de la llamada y las preguntas
+de seguimiento.
 """
 from __future__ import annotations
 
@@ -29,11 +33,18 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field
 
+from server.config import settings
+from server.conocimiento.citas import derivar, limpiar
+from server.conocimiento.recuperacion import Cita, formatear
+from server.dialogo.pregunta import es_pregunta
 from server.dialogo.prompts import (
+    CON_EVIDENCIA,
     DEGRADADO,
     DEGRADADO_CON_ALARMA,
     RESPONDER_SYSTEM,
     SIN_CONTEXTO,
+    SIN_EVIDENCIA,
+    SIN_INFORMACION,
     SIN_RESPUESTA,
 )
 from server.modelo.flujo import SentenceSplitter
@@ -60,10 +71,22 @@ INTERCAMBIOS = 8
 
 
 class RespuestaVera(BaseModel):
-    """Lo que devuelve el modelo. Un solo campo por ahora; las citas llegan con
-    los documentos, y van antes de `utterance` para estar completas antes de que
-    empiece a sonar la primera palabra."""
+    """Lo que devuelve el modelo.
 
+    `citas` va **antes** de `utterance` y no es cosmética: la salida estructurada
+    respeta el orden del esquema, así que las citas llegan completas antes de que
+    empiece a sonar la primera palabra. Si fueran después, la primera frase ya
+    estaría en el parlante cuando se sepa con qué la respaldó.
+
+    Los números son **posiciones dentro del turno** —1, 2, 3— y no ids del
+    índice, para que el esquema sea el mismo en todos los turnos: Claude compila
+    cada esquema nuevo y eso está medido en ~0,9 s de más en la primera frase.
+    Que sean posiciones válidas lo comprueba el código, no el esquema.
+    """
+
+    citas: list[int] = Field(
+        description="Números de los fragmentos del CONTEXTO que respaldan la "
+                    "respuesta. Vacío si no usaste ninguno.")
     utterance: str = Field(description="Lo que se le dice al paciente, breve y claro.")
 
 
@@ -76,6 +99,9 @@ class EnCurso:
     juez: asyncio.Task
     dichas: list[str]
     t0: float
+    citas: list = field(default_factory=list)
+    marcas: list[int] = field(default_factory=list)
+    hubo_evidencia: bool = False
 
 
 @dataclass
@@ -85,10 +111,17 @@ class TurnoVera:
     # Quién escribió lo que se dijo: `modelo` o `codigo`. Es la primera pregunta
     # de cualquier auditoría clínica, y sin el campo habría que deducirla.
     redactado_por: str
-    # ok | emergencia | degradado_sin_modelo | respuesta_vacia
+    # ok | emergencia | degradado_sin_modelo | respuesta_vacia | sin_evidencia
     marca: str = "ok"
     usage: dict = field(default_factory=dict)
     latencia_ms: dict = field(default_factory=dict)
+    # Los fragmentos que respaldan lo dicho, ya verificados contra lo que se le
+    # mostró al modelo en este turno. Lista vacía significa que no hay respaldo:
+    # o el turno no afirmó nada clínico, o afirmó algo que no se pudo atribuir a
+    # ninguna fuente. Las dos cosas hay que poder distinguirlas al auditar, y por
+    # eso está también `hubo_evidencia`.
+    citas: list[Cita] = field(default_factory=list)
+    hubo_evidencia: bool = False
 
 
 def _ms(desde: float) -> int:
@@ -98,8 +131,14 @@ def _ms(desde: float) -> int:
 class Conversacion:
     """Una por llamada: lleva lo poco que un turno necesita del anterior."""
 
-    def __init__(self, llm: StructuredLLM, apertura: str | None = None):
+    def __init__(self, llm: StructuredLLM, apertura: str | None = None,
+                 recuperador=None):
         self.llm = llm
+        # Sin recuperador, Vera funciona igual pero sin poder afirmar nada
+        # clínico: es la misma degradación que ya tiene definida para el oído y
+        # la voz, y la que corre en los arneses que no quieren cargar el modelo
+        # de embeddings para probar otra cosa.
+        self.rec = recuperador
         self.historial: list[dict] = []
         # Lo que Vera ya dijo al contestar, si lo dijo. El modelo no lo escribió
         # —es texto fijo—, así que sin esto no sabe que ya se presentó y vuelve a
@@ -149,17 +188,59 @@ class Conversacion:
                                        uso, lat, t0)
             return
 
+        # El conocimiento, antes del modelo. Va en un hilo porque es CPU —el
+        # embedding de la consulta y BM25— y el servidor entero es asíncrono:
+        # sin esto, el turno bloquearía el bucle que está reproduciendo audio.
+        recuperado = None
+        if self.rec is not None and (flags or es_pregunta(texto)):
+            recuperado = await asyncio.to_thread(self.rec.consultar, texto)
+            lat["recuperacion_ms"] = _ms(t0)
+        # Se recuperan más de los que ve el modelo: recuperar de más ordena mejor
+        # y es barato; mostrar de más son cientos de tokens en la ruta crítica.
+        citas = list(recuperado.citas[:settings.k_evidencia]) if recuperado else []
+        hay_evidencia = bool(recuperado and recuperado.hay_evidencia)
+        self._en_curso.citas = citas
+        self._en_curso.hubo_evidencia = hay_evidencia
+
+        # Una pregunta que el corpus no responde NO llega al modelo. Es la
+        # diferencia entre pedirle que se abstenga y no darle la oportunidad de
+        # no hacerlo: con fragmentos delante y sin evidencia, está medido que
+        # afirma sobre ellos igual. Lo que se dice aquí lo escribe el código.
+        if recuperado is not None and not hay_evidencia and es_pregunta(texto):
+            lat["primera_frase_ms"] = _ms(t0)
+            dichas.append(SIN_INFORMACION)
+            yield "speak", SIN_INFORMACION
+            ra, uso = await _esperar(juez)
+            yield "turn", self._cerrar(texto, flags, ra, SIN_INFORMACION, "codigo",
+                                       "sin_evidencia", uso, lat, t0, [], False)
+            return
+
         objetivo = OBJETIVO_ALARMA if severidad == "high" else OBJETIVO_NORMAL
-        user = f"OBJETIVO DE ESTE TURNO: {objetivo}\n\nPACIENTE: {texto}\n\n{SIN_CONTEXTO}"
+        user = self._instruccion(texto, objetivo, citas, hay_evidencia)
         if self.apertura and not self.historial:
             user = f"VERA YA DIJO AL CONTESTAR LA LLAMADA: «{self.apertura}»\n\n{user}"
         partidor = SentenceSplitter()
         obj, uso_resp = None, {}
+        declaradas: list[int] = []
+        marcas = self._en_curso.marcas
         try:
             async for tipo, dato in self.llm.astructured_stream(
                     RESPONDER_SYSTEM, user, RespuestaVera, historial=self.historial):
-                if tipo == "delta":
+                if tipo == "grounding":
+                    # Los campos anteriores a `utterance`, completos antes de la
+                    # primera palabra. Es el único momento en que se pueden leer
+                    # sin esperar al final del turno.
+                    declaradas = [n for n in (dato.get("citas") or []) if isinstance(n, int)]
+                elif tipo == "delta":
                     for frase in partidor.push(dato):
+                        # La limpieza va AQUÍ, frase a frase, y no al final: cada
+                        # frase se sintetiza en cuanto está completa, así que
+                        # limpiar después no llega a tiempo y el paciente oiría
+                        # «abre paréntesis citation ids dos».
+                        frase, ids = limpiar(frase)
+                        marcas.extend(ids)
+                        if not frase:
+                            continue
                         lat.setdefault("primera_frase_ms", _ms(t0))
                         dichas.append(frase)
                         yield "speak", frase
@@ -178,24 +259,54 @@ class Conversacion:
             return
 
         if resto := partidor.flush():
-            lat.setdefault("primera_frase_ms", _ms(t0))
-            dichas.append(resto)
-            yield "speak", resto
-        utterance = " ".join(dichas) or (obj.utterance.strip() if obj else "")
-        if utterance and not dichas:
-            lat.setdefault("primera_frase_ms", _ms(t0))
-            yield "speak", utterance
+            resto, ids = limpiar(resto)
+            marcas.extend(ids)
+            if resto:
+                lat.setdefault("primera_frase_ms", _ms(t0))
+                dichas.append(resto)
+                yield "speak", resto
+        utterance = " ".join(dichas)
+        if not utterance and obj:
+            utterance, ids = limpiar(obj.utterance)
+            marcas.extend(ids)
+            if utterance:
+                lat.setdefault("primera_frase_ms", _ms(t0))
+                yield "speak", utterance
         redactado_por, marca = "modelo", "ok"
         if not utterance:
             utterance, redactado_por, marca = SIN_RESPUESTA, "codigo", "respuesta_vacia"
             lat.setdefault("primera_frase_ms", _ms(t0))
             yield "speak", utterance
 
+        # La cita, ya dicho todo. Lo declarado manda; si no declaró, valen las
+        # marcas que escribió dentro del texto; si tampoco, se atribuye por
+        # solapamiento. Todo contra los fragmentos de ESTE turno.
+        _, verificadas = derivar(utterance, citas, declaradas or marcas)
+
         ra, uso_juez = await _esperar(juez)
         uso = {k: uso_resp.get(k, 0) + uso_juez.get(k, 0)
                for k in ("input_tokens", "output_tokens")}
         yield "turn", self._cerrar(texto, flags, ra, utterance, redactado_por, marca,
-                                   uso, lat, t0)
+                                   uso, lat, t0, verificadas, hay_evidencia)
+
+    def _instruccion(self, texto: str, objetivo: str, citas, hay_evidencia: bool) -> str:
+        """La instrucción del turno la fija el CÓDIGO, no la elige el modelo.
+
+        Son tres situaciones y cada una necesita lo contrario de la otra, así que
+        una sola instrucción fija se equivoca en dos de las tres. El porqué de
+        cada una está junto a su texto en `prompts.py`.
+        """
+        if not citas:
+            cierre = SIN_CONTEXTO
+        elif hay_evidencia:
+            cierre = CON_EVIDENCIA
+        else:
+            cierre = SIN_EVIDENCIA
+        partes = []
+        if citas:
+            partes.append(f"CONTEXTO:\n{formatear(citas)}\n")
+        partes += [f"OBJETIVO DE ESTE TURNO: {objetivo}\n", f"PACIENTE: {texto}\n", cierre]
+        return "\n".join(partes)
 
     async def cerrar_interrumpido(self) -> TurnoVera | None:
         """Cierra el turno que el paciente interrumpió, con lo que se alcanzó a decir.
@@ -210,11 +321,16 @@ class Conversacion:
             return None
         e, self._en_curso = self._en_curso, None
         ra, uso = await _esperar(e.juez)
-        return self._cerrar(e.texto, e.flags, ra, " ".join(e.dichas),
-                            "modelo", "interrumpido", uso, {}, e.t0)
+        dicho = " ".join(e.dichas)
+        # El turno se cortó a la mitad, así que el campo de citas del modelo no
+        # llegó nunca: lo que hay son las marcas que alcanzó a escribir y las
+        # palabras que alcanzó a decir. Media respuesta también se audita.
+        _, verificadas = derivar(dicho, e.citas, e.marcas)
+        return self._cerrar(e.texto, e.flags, ra, dicho, "modelo", "interrumpido",
+                            uso, {}, e.t0, verificadas, e.hubo_evidencia)
 
     def _cerrar(self, texto, flags, ra, utterance, redactado_por, marca,
-                uso, lat, t0) -> TurnoVera:
+                uso, lat, t0, citas=(), hubo_evidencia=False) -> TurnoVera:
         """Punto único por el que pasan todas las rutas del turno."""
         self.historial.append({"role": "user", "content": texto})
         # Solo si Vera alcanzó a decir algo. Un turno interrumpido antes de la
@@ -231,7 +347,8 @@ class Conversacion:
         lat["total_ms"] = _ms(t0)
         return TurnoVera(utterance=utterance, decision=decision,
                          redactado_por=redactado_por, marca=marca,
-                         usage=uso, latencia_ms=lat)
+                         usage=uso, latencia_ms=lat, citas=list(citas),
+                         hubo_evidencia=hubo_evidencia)
 
 
 async def _esperar(tarea) -> tuple[RiskAssessment | None, dict]:

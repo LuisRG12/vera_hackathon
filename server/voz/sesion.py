@@ -79,6 +79,15 @@ def turno_json(t: TurnoVera) -> dict:
         "marca": t.marca,
         "latencia": t.latencia_ms,
         "tokens": t.usage,
+        # Con qué documento se respalda lo que dijo. Va el nombre del archivo y
+        # la sección —no el texto del fragmento— porque es lo que permite
+        # seguirla hasta la fuente sin volcar el corpus en cada turno. `ficticio`
+        # distingue el plan de egreso de demostración de una guía publicada: en
+        # una auditoría clínica esa diferencia es lo primero que hay que ver.
+        "citas": [{"documento": c.fragmento.documento,
+                   "seccion": c.fragmento.seccion,
+                   "ficticio": c.fragmento.ficticio} for c in t.citas],
+        "hubo_evidencia": t.hubo_evidencia,
     }
 
 
@@ -92,7 +101,8 @@ class SesionLlamada:
         self.vigilancia = Vigilancia()
         # Lo que Vera lleva dicho, para reconocerlo si vuelve por el micrófono.
         self.dichas = RegistroDeVoz()
-        self.conversacion = Conversacion(estado.llm, apertura=SALUDO)
+        self.conversacion = Conversacion(estado.llm, apertura=SALUDO,
+                                         recuperador=estado.recuperador)
         self.voz = VozCartesia()
         self.con_voz = False
         self.llamada = uuid.uuid4().hex[:8]

@@ -14,7 +14,15 @@ from __future__ import annotations
 import asyncio
 import sys
 
-from server.dialogo.prompts import DEGRADADO, DEGRADADO_CON_ALARMA, SIN_RESPUESTA
+from server.conocimiento.indice import Fragmento
+from server.conocimiento.recuperacion import Cita, Recuperado
+from server.dialogo.prompts import (
+    DEGRADADO,
+    DEGRADADO_CON_ALARMA,
+    SIN_CONTEXTO,
+    SIN_INFORMACION,
+    SIN_RESPUESTA,
+)
 from server.dialogo.turno import INTERCAMBIOS, OBJETIVO_ALARMA, Conversacion
 from server.modelo.llm import LLMError
 from server.seguridad.esquemas import RiskAssessment
@@ -35,9 +43,14 @@ class ModeloDeMentira:
     """Responde lo que se le diga, y cuenta cuántas veces lo invocaron."""
 
     def __init__(self, respuesta="Qué bueno que pudo caminar. ¿Cómo ha estado la herida hoy?",
-                 riesgo="none", falla_respuesta=False, falla_juez=False, pausa=0.0):
+                 riesgo="none", falla_respuesta=False, falla_juez=False, pausa=0.0,
+                 citas=()):
         self.respuesta, self.riesgo, self.pausa = respuesta, riesgo, pausa
         self.falla_respuesta, self.falla_juez = falla_respuesta, falla_juez
+        # Lo que el modelo declara en su campo de citas. Va aparte de la
+        # respuesta porque el turno lo lee ANTES de la primera palabra: la
+        # salida estructurada respeta el orden del esquema.
+        self.citas = list(citas)
         self.respuestas_pedidas = 0
         self.ultimo_prompt = ""
         self.ultimo_previo_al_juez: str | None = None
@@ -48,6 +61,7 @@ class ModeloDeMentira:
         self.ultimo_prompt = user
         if self.falla_respuesta:
             raise LLMError("el gateway no responde")
+        yield "grounding", {"citas": self.citas}
         # Llega a pedazos, como del gateway. `pausa` sirve para que un turno dure
         # lo suficiente como para poder interrumpirlo.
         for i in range(0, len(self.respuesta), 7):
@@ -55,7 +69,7 @@ class ModeloDeMentira:
                 await asyncio.sleep(self.pausa)
             yield "delta", self.respuesta[i:i + 7]
         uso = {"input_tokens": 100, "output_tokens": 20}
-        yield "final", (schema(utterance=self.respuesta), uso)
+        yield "final", (schema(citas=self.citas, utterance=self.respuesta), uso)
 
     async def structured(self, system, user, schema, max_tokens=400, temperatura=0.0):
         self.ultimo_previo_al_juez = user.split("TURNO ANTERIOR DEL PACIENTE: ")[1].split("\n")[0] \
@@ -64,6 +78,37 @@ class ModeloDeMentira:
             raise LLMError("el juez no responde")
         return RiskAssessment(risk=self.riesgo, rationale="valoración de prueba"), \
             {"input_tokens": 600, "output_tokens": 50}
+
+
+class RecuperadorDeMentira:
+    """Devuelve siempre los mismos tres fragmentos, con el veredicto que se le pida.
+
+    Lo que se prueba aquí no es la recuperación —eso lo mide `evals.conocimiento`
+    contra el corpus real y su modelo de embeddings— sino **qué hace el turno con
+    lo que le entreguen**. Separarlos deja este arnés en cero tokens, cero red y
+    sin cargar dos gigas de modelo para comprobar un `if`.
+    """
+
+    def __init__(self, hay_evidencia: bool):
+        self.hay_evidencia = hay_evidencia
+        self.consultas = 0
+        self.citas = [
+            Cita(Fragmento(0, "plan.md", "Plan de egreso", "Baño",
+                           "Puede ducharse a partir del tercer día después de la cirugía."),
+                 0.85, 0.0, 0.03),
+            Cita(Fragmento(1, "fiebre.md", "Fiebre", "Fiebre",
+                           "Llame el mismo día si presenta fiebre de 38 grados o más."),
+                 0.83, 0.0, 0.02),
+            Cita(Fragmento(2, "dolor.md", "Dolor", "Dolor",
+                           "El dolor es una señal que envía el sistema nervioso."),
+                 0.80, 0.0, 0.01),
+        ]
+
+    def consultar(self, texto: str):
+        self.consultas += 1
+        return Recuperado(citas=list(self.citas), hay_evidencia=self.hay_evidencia,
+                          max_denso=0.85 if self.hay_evidencia else 0.79,
+                          solape_lexico=0)
 
 
 async def turno(conv: Conversacion, texto: str) -> tuple[list[str], object]:
@@ -179,6 +224,68 @@ async def main() -> int:
           t is not None and t.marca == "interrumpido", str(t and t.marca))
     check("y no mete en el historial un mensaje vacío, que el modelo rechaza",
           all(m["content"].strip() for m in conv.historial), str(conv.historial))
+
+    print("\n== El conocimiento va antes del modelo, y el código decide si alcanza ==")
+    # Con evidencia: los fragmentos entran al prompt y la cita se resuelve.
+    m = ModeloDeMentira(respuesta="Puede ducharse a partir del tercer día.", citas=[1])
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    frases, t = await turno(conv, "¿cuándo me puedo bañar?")
+    check("el fragmento le llega al modelo como CONTEXTO", "CONTEXTO:" in m.ultimo_prompt)
+    check("numerado por posición y no por id del índice", "[1] (" in m.ultimo_prompt,
+          m.ultimo_prompt[:120])
+    check("la cita queda resuelta al documento",
+          [c.fragmento.documento for c in t.citas] == ["plan.md"],
+          str([c.fragmento.documento for c in t.citas]))
+    check("y el turno queda marcado como respaldado", t.hubo_evidencia)
+
+    # Sin evidencia y con una pregunta: el modelo no llega a verla. Es la
+    # diferencia entre pedirle que se abstenga y no darle la ocasión de no
+    # hacerlo, que está medida: con fragmentos delante afirma sobre ellos igual.
+    m = ModeloDeMentira()
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=False))
+    frases, t = await turno(conv, "¿puedo tomar cerveza?")
+    check("una pregunta sin evidencia la responde el código",
+          frases == [SIN_INFORMACION], str(frases))
+    check("sin invocar al modelo", m.respuestas_pedidas == 0)
+    check("queda marcada como sin evidencia",
+          t.marca == "sin_evidencia" and t.redactado_por == "codigo", t.marca)
+    check("y sin citas, porque no afirmó nada", t.citas == [])
+
+    # Lo que NO es pregunta ni dispara reglas no paga la recuperación: el
+    # embedding de la consulta va en la ruta crítica del turno.
+    rec = RecuperadorDeMentira(hay_evidencia=True)
+    conv = Conversacion(ModeloDeMentira(), recuperador=rec)
+    await turno(conv, "sí, listo")
+    check("un turno que no pregunta nada no consulta el índice", rec.consultas == 0,
+          str(rec.consultas))
+    rec2 = RecuperadorDeMentira(hay_evidencia=True)
+    conv = Conversacion(ModeloDeMentira(), recuperador=rec2)
+    await turno(conv, "la herida está botando materia")
+    check("un signo de alarma sí lo consulta, aunque no pregunte", rec2.consultas == 1)
+
+    print("\n== Una cita que el modelo se inventa no es una cita ==")
+    m = ModeloDeMentira(respuesta="Eso lo tiene que ver su equipo.", citas=[9])
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    frases, t = await turno(conv, "¿cuándo me quitan los puntos?")
+    check("citar un fragmento que no se le mostró no cuenta", t.citas == [],
+          str([c.fragmento.documento for c in t.citas]))
+
+    m = ModeloDeMentira(respuesta="Puede ducharse desde el tercer día (2).", citas=[])
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    frases, t = await turno(conv, "¿cuándo me puedo bañar?")
+    check("la marca escrita dentro del texto sí vale",
+          [c.fragmento.documento for c in t.citas] == ["fiebre.md"],
+          str([c.fragmento.documento for c in t.citas]))
+    check("y no se oye en voz alta",
+          frases == ["Puede ducharse desde el tercer día."], str(frases))
+
+    print("\n== Sin conocimiento, la llamada sigue ==")
+    m = ModeloDeMentira()
+    frases, t = await turno(Conversacion(m, recuperador=None), "¿cuándo me puedo bañar?")
+    check("el modelo responde sin contexto clínico", "CONTEXTO:" not in m.ultimo_prompt)
+    check("y se le prohíbe afirmar nada", SIN_CONTEXTO in m.ultimo_prompt)
+    check("el turno queda sin citas y sin evidencia",
+          t.citas == [] and not t.hubo_evidencia)
 
     ok = sum(resultados)
     print(f"\nRESULTADO: {ok}/{len(resultados)} comprobaciones del turno.")

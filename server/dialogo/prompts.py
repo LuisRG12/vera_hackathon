@@ -62,6 +62,49 @@ SIN_CONTEXTO = (
     "herida ni su medicación. Dos frases como máximo."
 )
 
+# Con fragmentos delante pero sin evidencia suficiente. Es el caso que menos se
+# ve y el más peligroso: el índice siempre devuelve sus mejores k, así que hay
+# texto clínico delante aunque ninguno responda. Medido en el proyecto original,
+# el modelo afirma sobre él —«no se recomienda beber cerveza después de una
+# apendicectomía», sin una sola cita—.
+#
+# Cuando el turno es una pregunta, esto ni siquiera se usa: la respuesta la
+# escribe el código (`SIN_INFORMACION`). Esta instrucción es para el turno que
+# no pregunta nada y aun así recuperó algo, donde callar no corresponde pero
+# apoyarse en el contexto tampoco.
+SIN_EVIDENCIA = (
+    "Responde como Vera. El CONTEXTO de abajo NO responde lo que dijo: no te "
+    "apoyes en él para afirmar nada. Solo puedes preguntar o reconocer lo que "
+    "dijo. Dos frases como máximo."
+)
+
+# Con evidencia. Aquí el código ya decidió contra el umbral calibrado, y que el
+# modelo vuelva a decidirlo es regalarle una decisión que no sabe tomar: en el
+# proyecto original, con una frase de escape en el prompt, negaba tres de cada
+# seis veces **teniendo el pasaje delante**. Esta instrucción no le ofrece
+# salida: el corpus responde, y su trabajo es decirlo con las palabras del
+# fragmento y declarar cuál usó.
+CON_EVIDENCIA = (
+    "Responde como Vera. El CONTEXTO de abajo SÍ responde lo que preguntó: "
+    "dígaselo con las palabras del fragmento. No digas que no tienes la "
+    "información. En «citas» pon el número de los fragmentos que usaste, y no "
+    "escribas números de fragmento dentro de la respuesta: eso se va a leer en "
+    "voz alta. Dos frases como máximo."
+)
+
+# Cuando el paciente pregunta algo y el corpus no lo responde. Es **texto fijo y
+# no generado** a propósito: en el momento en que Vera admite que no sabe, lo
+# último que conviene es que improvise. En el proyecto original esta respuesta
+# es la que impide que una pregunta sin evidencia llegue al modelo con material
+# clínico delante, que es donde nacían las afirmaciones sin cita.
+#
+# Promete solo lo que el sistema hace: avisarle al equipo. No ofrece llamar a
+# nadie ni dar un teléfono, porque Vera no tiene ninguno.
+SIN_INFORMACION = (
+    "Eso no lo tengo en sus documentos de cuidado, así que prefiero no orientarlo "
+    "por mi cuenta. Puedo dejarle la inquietud anotada a su equipo clínico."
+)
+
 # Cuando el modelo devuelve la respuesta vacía. Callar nunca es una respuesta
 # válida en una llamada de voz: el paciente se queda oyendo silencio sin saber si
 # la llamada sigue.
