@@ -13,9 +13,9 @@ lo que va llegando. Quien consume decide el ritmo.
 
 **El fin de turno lo decide AssemblyAI, no nosotros.** El servidor trae fin de
 turno *semántico* —mira el sentido de lo dicho, no solo el silencio—, que es
-mejor que la heurística propia de «frase a media idea». Esa heurística queda como
-respaldo en `agent/turn_taking.py` y se mide si todavía aporta antes de
-conservarla.
+mejor que la heurística propia de «frase a media idea» del proyecto original, que
+no se trajo: con `max_accuracy` el servicio aguanta las pausas de un paciente y
+no ha hecho falta.
 
 **La clave nunca sale del servidor.** El navegador habla con nosotros y nosotros
 hablamos con AssemblyAI. Si algún día el navegador conectara directo, haría falta
