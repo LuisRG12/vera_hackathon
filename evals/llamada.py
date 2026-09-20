@@ -145,9 +145,16 @@ async def main() -> int:
     sesion, ws, oido = await montar(lento)
     oido.oye("me duele un poco la herida", orden=1)
     await asyncio.sleep(0.05)
+    antes = len(ws.de_tipo("callar"))
     oido.oye("pero además", orden=2, cerrado=False)  # el paciente vuelve a hablar
     await asyncio.sleep(0.3)
-    check("se le dice al navegador que calle", len(ws.de_tipo("callar")) == 1)
+    callares = ws.de_tipo("callar")
+    check("se le dice al navegador que calle", len(callares) > antes)
+    # Callar es lo que para el audio que ya está en el navegador, y por eso se
+    # manda aunque no quede nada por generar: una frase fija viaja entera y sigue
+    # sonando cuando aquí ya no hay tarea que cancelar.
+    check("y se le dice hasta qué turno tirar", callares[-1]["hasta"] == sesion._n,
+          str(callares[-1]))
     interrumpidos = [m for m in ws.de_tipo("vera") if m["marca"] == "interrumpido"]
     check("el turno interrumpido se cierra igual", len(interrumpidos) == 1,
           str([m["marca"] for m in ws.de_tipo("vera")]))
@@ -155,14 +162,26 @@ async def main() -> int:
           bool(interrumpidos) and "juez" in interrumpidos[0]["motivo"],
           str(interrumpidos[0]["motivo"]) if interrumpidos else "—")
 
+    print("\n== Interrumpir una frase fija, que ya no se está generando ==")
+    sesion, ws, oido = await montar(ModeloDeMentira())
+    oido.oye("me duele el pecho y no me entra el aire", orden=1)
+    await asyncio.sleep(0.2)          # la emergencia ya salió entera y sigue sonando
+    sesion.sonando = True
+    antes = len(ws.de_tipo("callar"))
+    oido.oye("pero la verdad es", orden=2, cerrado=False)
+    await asyncio.sleep(0.1)
+    check("se calla igual, aunque no hubiera nada que cancelar",
+          len(ws.de_tipo("callar")) > antes)
+
     print("\n== Un parcial de una palabra no la calla ==")
     sesion, ws, oido = await montar(ModeloDeMentira(respuesta="Una frase. Y otra más.",
                                                     pausa=0.03))
     oido.oye("me duele la herida", orden=1)
     await asyncio.sleep(0.05)
+    antes = len(ws.de_tipo("callar"))
     oido.oye("eh", orden=2, cerrado=False)
     await asyncio.sleep(0.05)
-    check("no se calla por un carraspeo", len(ws.de_tipo("callar")) == 0)
+    check("no se calla por un carraspeo", len(ws.de_tipo("callar")) == antes)
 
     print("\n== Si el escalamiento lo pone el juez, también se alerta ==")
     sesion, ws, oido = await montar(ModeloDeMentira(riesgo="high"))

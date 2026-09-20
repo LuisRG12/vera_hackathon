@@ -215,11 +215,13 @@ class SesionLlamada:
                     await sin_voz(e)
             await cerrar_voz()
         except asyncio.CancelledError:
+            # El «callar» lo manda `_cortar`, que es quien sabe que el paciente
+            # tomó la palabra; aquí solo se deja de generar audio que ya nadie
+            # va a oír.
             if voz is not None:
                 await voz.cancelar()
             if reenvio is not None:
                 reenvio.cancel()
-            await self._enviar({"type": "callar", "hasta": n})
             raise
 
     # ---------------------------------------------------------- lo que oye
@@ -262,7 +264,18 @@ class SesionLlamada:
         return self.dichas.es_eco(texto, reproduciendo=self.sonando)
 
     def _cortar(self) -> None:
-        """Calla a Vera y cierra el turno que se estaba generando.
+        """Calla a Vera: deja de generar, y sobre todo deja de sonar.
+
+        **Callar y cancelar no son lo mismo, y confundirlos fue un defecto real.**
+        Antes esto solo cancelaba la generación en curso, así que interrumpir no
+        hacía nada cuando ya no quedaba nada que generar —una frase fija viaja
+        entera y de una vez, y un turno del modelo termina de generarse mucho
+        antes de terminar de sonar—. Probándolo con voz: Vera acababa su frase
+        de emergencia completa y solo entonces contestaba a lo que el paciente
+        había dicho encima, como si le hubiera hecho cola.
+
+        El navegador tiene audio en cola que aquí ya no se puede quitar, así que
+        se le dice que lo tire: todo lo del turno de voz en curso y anteriores.
 
         Cancelar la generación no puede cancelar la seguridad: el juez de ese
         turno ya venía en camino, así que la conversación lo cierra igual con lo
@@ -270,6 +283,7 @@ class SesionLlamada:
         —justo cuando tiene algo urgente que contar— sería el único sin la
         segunda capa.
         """
+        asyncio.create_task(self._enviar({"type": "callar", "hasta": self._n}))
         if not (self._generando and not self._generando.done()):
             return
         self._generando.cancel()
