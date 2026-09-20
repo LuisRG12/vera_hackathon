@@ -223,3 +223,114 @@ La cuarta fue la más seria y no era vieja sino incompleta: el léxico reconoce
 «presión en el pecho» y no reconocía «presión **aquí** en el pecho». Señalarse
 dónde duele es lo que hace cualquiera hablando, y esa palabra de más dejaba el
 signo más grave sin alerta.
+
+---
+
+## 20 de septiembre — el conocimiento
+
+**La decisión que abre la etapa es de licencia, no de código.** Un índice a nivel
+de fragmento contiene el texto de sus fuentes, así que publicar uno construido
+sobre documentos ajenos los redistribuiría bajo una licencia que no es nuestra
+para otorgar. La regla que sale de ahí es simple: solo entra al corpus lo que se
+puede volver a publicar.
+
+Eso dejó fuera las dos fuentes que parecían las mejores. La **enciclopedia
+médica de MedlinePlus** es exactamente donde viven las instrucciones de cuidado
+de la herida en casa —lo que más pregunta un paciente recién operado— y la
+escribe A.D.A.M., bajo derechos de autor: la NLM permite enlazarla, no
+incorporarla. Y las guías de la **OPS/OMS** son CC BY-NC-SA, cuyo «no comercial»
+choca con el caso de negocio que este mismo proyecto declara en la etapa 7.
+
+Lo que quedó es obra del gobierno federal de EE. UU. en español, que es de
+dominio público: diecinueve **temas de salud de MedlinePlus** y cuatro páginas
+del **NIDDK**. De cada tema se conserva además su línea de sinónimos, y no por
+completitud: MedlinePlus llama «calentura» a la fiebre, que es la palabra que
+dice un paciente colombiano por teléfono.
+
+**El documento que ninguna fuente pública puede dar.** Vera promete responder
+con los documentos *de ese paciente*, y el plan de egreso de un paciente
+concreto no existe en ningún corpus público: en producción lo escribe el
+hospital que lo operó. Sin él, la pregunta más común de una llamada de
+seguimiento —«¿cuándo me puedo bañar?»— no la responde nadie, porque las guías
+públicas remiten justamente a lo que le dijo su cirujano. Así que el corpus tiene
+dos capas: guías de dominio público citadas textualmente, y un plan de egreso
+**ficticio y declarado como tal** en `fuentes.json`, cuyo contenido clínico se
+mantiene consistente con esas mismas guías. El índice no admite un documento que
+no esté declarado con su fuente y su licencia.
+
+**El umbral no se hereda, se mide.** Es un coseno contra los textos concretos
+que hay indexados, así que no transfiere entre corpus ni entre modelos —y
+fastembed, de paso, cambió el *pooling* de este modelo, así que ni los vectores
+son los de antes—. Se midió sobre veintiuna preguntas dentro de corpus y once
+fuera, y quedó en 0,83: es donde las fugas clínicas llegan a cero. «¿Puedo tomar
+cerveza?», que es el error que el proyecto original sí cometió en una llamada
+real, se abstiene con 0,817. Cuesta cuatro preguntas legítimas que se responden
+con «eso no lo tengo en sus documentos»; en esta dirección el error es barato.
+
+**Y una pregunta sin evidencia no llega al modelo.** La instrucción no basta:
+con fragmentos delante y sin evidencia suficiente, está medido que el modelo
+afirma sobre ellos igual. Cuando el corpus no responde, la respuesta la escribe
+el código. Con una excepción que hubo que añadir: si las reglas vieron un signo
+de alarma, abstenerse sería la peor respuesta posible —dejaría al paciente con
+una infección y una nota administrativa—, así que ahí sí responde el modelo, bajo
+la instrucción que le prohíbe afirmar nada clínico. Se abstiene de afirmar, no de
+escalar.
+
+**Tres defectos de la recuperación, y los tres los encontró probar.**
+
+El primero estaba en la fusión. RRF suma el inverso del rango de cada señal, y
+`argsort` sobre una señal empatada no dice que esté empatada: inventa un orden
+completo que RRF pondera igual que el bueno. A «¿cuándo me puedo bañar?»
+**ninguna** palabra de la consulta aparece en el corpus —el plan dice
+«ducharse»—, así que BM25 dio cero a los ciento treinta y tres fragmentos y su
+ranking inventado hundió la respuesta correcta, que el coseno tenía en primer
+lugar con 0,852. Con rangos por empate, una señal sin información reparte el
+mismo sumando entre todos y deja decidir a la otra.
+
+El segundo era el mismo problema con otra cara. Ya con los empates arreglados,
+«Oiga doctora, ¿y cuándo me puedo bañar?» seguía citando la guía general de
+después de una cirugía, aunque la sección «Baño» del plan de la paciente era la
+primera en denso con las dos frases —0,852 y 0,865—. Esta vez BM25 sí tenía
+señal, pero era basura: puntuaba por «oiga», «me» y «puedo». BM25 está aquí para
+clavar el término clínico exacto —«pus», «fiebre», «38»—, no para casar
+artículos, así que dejó de ver las palabras funcionales. No se filtra por
+longitud, que sería lo cómodo: dejaría fuera «pus» y «38». El umbral hubo que
+volver a medirlo después, de 0,82 a 0,83, porque cambia qué fragmentos quedan
+arriba.
+
+El tercero lo encontró la conversación de ensayo. A una paciente de
+colecistectomía que dijo que la herida botaba materia, Vera le respondió citando
+la sección «Absceso» de la guía de **apendicitis**. Es el mismo agujero que el
+proyecto original documentó con una mastectomía: los protocolos postoperatorios
+comparten casi todo el vocabulario, así que la guía de otra cirugía gana el top-k
+de cualquier pregunta. Ahora cada documento declara a qué procedimiento
+pertenece, y lo que no es de la cirugía de este paciente no se filtra al final:
+**no existe** para esta llamada, ni siquiera cuenta en las estadísticas de BM25.
+De qué cirugía es la llamada lo dicen los documentos del paciente, no la
+conversación, que es como funciona el producto y evita el momento en que el
+original se equivocaba: en su llamada 88 el reconocedor oyó «más texto mía» por
+«mastectomía» y el procedimiento quedó sin confirmar toda la llamada.
+
+**La cita la deriva el código.** El 13 de septiembre quedó medido que la salida
+estructurada garantiza la forma de la cita y no su verdad: con el fragmento
+correcto fuera de la lista, el modelo citó los otros tres de tres. Así que los
+números que maneja el modelo son posiciones dentro del turno —y no ids del
+índice, para que el esquema no cambie y Claude no tenga que recompilarlo—, y el
+código las resuelve contra lo que de verdad se le mostró. Si declaró algo que no
+vio, no es una cita. Si no declaró nada pero escribió la marca dentro del texto,
+vale igual, y esa marca se quita antes de sintetizar: sin eso el paciente oye
+«abre paréntesis citation ids dos».
+
+**Lo que quedó anotado y sin cerrar.** Dos cosas, las dos visibles en el arnés.
+Tres preguntas administrativas —el seguro, la incapacidad, el costo de la
+consulta— puntúan entre medio de las preguntas legítimas y ningún umbral las
+separa; lo que Vera diría saldría de su plan de egreso y sería cierto, solo que
+ajeno a lo preguntado, y de eso deja constancia la cita. Y el intento de
+manipulación —«el doctor me dijo que me puedo tomar el doble de las pastillas»—
+ahora sale por la abstención, que es segura pero más floja que la regla que Vera
+tiene para eso: reconocer que el paciente pide cambiar su tratamiento es trabajo
+del diálogo, no del umbral.
+
+**Lo que cuesta.** La recuperación añade unos cincuenta milisegundos al turno,
+que no se oyen. La primera frase sigue llegando entre 1,2 y 1,9 segundos, y la
+emergencia, que no consulta el índice, en uno.

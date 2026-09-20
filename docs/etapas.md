@@ -63,29 +63,35 @@ Reconectar la capa determinista sobre el texto de AssemblyAI.
       mostrar —muletillas, «yeyo» y el dolor de pecho oído como «brazo»—, ya
       cubiertos
 
-## Etapa 4 — El conocimiento · *la siguiente*
+## Etapa 4 — El conocimiento ✅
 
-Hasta aquí Vera pregunta, reconoce y escala, pero no puede afirmar nada clínico:
-sin documentos, la instrucción de cada turno le prohíbe hablar del tratamiento,
-la herida o la medicación. Esto es lo que le falta para cumplir la promesa del
-producto —responder solo con lo que dicen los documentos del paciente, citando
-cuál—.
+Hasta aquí Vera preguntaba, reconocía y escalaba, pero no podía afirmar nada
+clínico. Esto es lo que le faltaba para cumplir la promesa del producto
+—responder solo con lo que dicen los documentos del paciente, citando cuál—.
 
-Dos cosas ya medidas que condicionan el diseño (ver la bitácora del 13 de
-septiembre): el esquema de la respuesta **no puede cambiar en cada turno**,
-porque compilar uno nuevo cuesta casi un segundo; y enumerar en el esquema los
-fragmentos citables **no garantiza que la cita sea cierta** —con el fragmento
-correcto fuera de la lista, el modelo citó los otros tres de tres—. Las citas se
-verifican con código.
-
-- [ ] Corpus de guías clínicas de libre redistribución, seleccionado
-- [ ] Índice reconstruido y umbrales verificados
-- [ ] Citas resolviendo al documento correcto
-- [ ] **Prueba a mano:** preguntar algo del documento y verificar la cita
+- [x] Corpus de guías clínicas de libre redistribución, seleccionado: diecinueve
+      temas de salud de MedlinePlus y cuatro páginas del NIDDK, todo dominio
+      público en español, más un plan de egreso **ficticio y declarado como tal**
+      —ningún corpus público tiene los documentos de un paciente concreto—.
+      `conocimiento/fuentes.json` declara fuente y licencia de cada documento, y
+      el índice no admite uno que no esté ahí
+- [x] Índice reconstruido y umbrales verificados: 133 fragmentos, y el umbral
+      medido contra ESTE corpus (`evals/conocimiento.py`: 17 de 21 respondidas,
+      0 fugas clínicas). Se entrega construido, para que el despliegue no gaste
+      en arrancar lo que puede gastar una vez
+- [x] Citas resolviendo al documento correcto: las deriva el código de lo que de
+      verdad se le mostró al modelo, no de lo que el modelo declara
+      (`evals/citas.py`: 18/18). Lo que no se le mostró, no es una cita
+- [x] El corpus citable se acota al procedimiento del paciente: a una paciente de
+      vesícula no se le responde con la guía de apendicitis
+- [x] **Prueba a mano:** conversación completa con el modelo y el índice reales
+      (`uv run scripts/ensayo.py`), que recorre una pregunta respondida por el
+      plan del paciente, otra por una guía pública, una que el corpus no responde,
+      un signo de alarma, un intento de manipulación y una emergencia
 
 ## Etapa 5 — La llamada completa ✅
 
-> Se adelantó a la etapa 4: el reto es de voz, y juntar el oído, la cabeza y la
+> Se hizo antes que la etapa 4: el reto es de voz, y juntar el oído, la cabeza y la
 > voz antes que el conocimiento saca a la luz los problemas de latencia y de
 > turnos, que son los que condicionan todo lo demás. El conocimiento entra
 > después sin rediseñar nada.

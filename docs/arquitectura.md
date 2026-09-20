@@ -12,11 +12,11 @@ navegador ──PCM 16k── servidor ──wss──> AssemblyAI Universal-Str
                           │
                           ├─> motor de seguridad determinista  (SIEMPRE, parciales incluidos)
                           │
-                          ├─> recuperación híbrida (BM25 + embeddings) sobre guías clínicas
+                          ├─> recuperación híbrida (BM25 + embeddings) sobre los documentos del paciente
                           │
                           ├─> Claude vía LLM Gateway de AssemblyAI (structured outputs)
                           │
-                          └─> Piper TTS ──audio──> navegador
+                          └─> Cartesia TTS ──audio──> navegador
 ```
 
 El orden importa: **el motor de seguridad va antes del modelo, no después.**
@@ -113,9 +113,22 @@ El streaming trae fin de turno semántico —decide por el sentido de lo dicho, 
 solo por silencio—, mejor que la heurística propia de «texto a media idea». Esa
 heurística pasa a respaldo y se mide si sigue aportando.
 
-### 5. TTS: Piper, local
+### 5. TTS: Cartesia, en la nube
 
-CPU, ~60 MB, costo cero, ya calibrado en español. No hay razón para cambiarlo.
+Se decidió Piper —local, CPU, ~60 MB, costo cero, ya calibrado en español— y la
+etapa de la llamada lo cambió, por una razón que no se veía desde aquí: Piper no
+tiene una voz colombiana, y el acento importa en una llamada clínica a un
+paciente que acaba de salir de cirugía. AssemblyAI no vende síntesis por separado
+—su voz solo existe dentro del Voice Agent API, que este proyecto descartó— y el
+camino que documenta para agentes propios empareja su reconocedor con Cartesia,
+donde sí hay voces colombianas nativas. Se oyeron las cuatro con el saludo y con
+el mensaje de emergencia; se eligió Mariana, de tono calmado.
+
+Lo que se paga: la síntesis deja de ser gratis y deja de ser offline. Lo que se
+compra, además del acento: el primer trozo de audio llega en dos décimas de
+segundo. Y lo que dice el código —el saludo, la emergencia, los respaldos— se
+sintetiza al arrancar y queda guardado, así que suena aunque Cartesia se caiga,
+que es justo cuando más falta hace. Ver la bitácora del 15 al 20 de septiembre.
 
 ### 6. Conocimiento: guías clínicas de libre redistribución
 
@@ -125,6 +138,32 @@ de terceros los redistribuiría bajo una licencia que no es nuestra para otorgar
 
 Un corpus curado y verificable demuestra mejor que uno grande y opaco: el juez
 puede seguir cada cita hasta su fuente.
+
+Lo que salió de aplicar esa regla (ver `conocimiento/README.md` y la bitácora
+del 20 de septiembre): entran los **temas de salud de MedlinePlus** y las
+páginas del **NIDDK**, que son obra federal de EE. UU. en español y por tanto de
+dominio público; queda fuera la enciclopedia médica de MedlinePlus, que es de
+A.D.A.M., y quedan fuera las guías de la OPS/OMS, cuyo CC BY-NC-SA se contagiaría
+al índice publicado y choca con el caso de negocio de la etapa 7.
+
+El corpus tiene **dos capas**, y no por comodidad. Vera promete responder con los
+documentos *de ese paciente*, y el plan de egreso de un paciente concreto no
+existe en ningún corpus público: en producción lo escribe el hospital que lo
+operó. La demo lleva uno **ficticio y declarado como tal** en el manifiesto, y es
+también lo que fija de qué cirugía es la llamada. Todo lo demás son guías de
+referencia, citadas textualmente.
+
+**Lo que no es de la cirugía del paciente no existe para su llamada.** No se
+filtra al final: se excluye al abrir el índice, así que ni siquiera cuenta en las
+estadísticas de BM25. Los protocolos postoperatorios comparten casi todo el
+vocabulario, así que sin esto la guía de otra cirugía gana el top-k de cualquier
+pregunta —a una paciente de vesícula se le respondió con la sección «Absceso» de
+la guía de apendicitis—. Es seguridad clínica, no precisión.
+
+**Y la cita la deriva el código**, no la declara el modelo: está medido que la
+salida estructurada garantiza la forma de la cita y no su verdad. Lo que el
+modelo diga se resuelve contra los fragmentos que de verdad se le mostraron en
+ese turno; lo que no vio, no es una cita.
 
 ### 7. Despliegue: Hugging Face Spaces (SDK Docker)
 

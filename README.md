@@ -26,8 +26,11 @@ Built **during the hackathon window** (September 2026):
   Universal-Streaming** (multilingual), including clinical keyterm prompting.
 - Language model moved from a local Llama 3.2 to **Claude via the AssemblyAI LLM
   Gateway**, with structured outputs replacing grammar-constrained decoding.
+- Speech synthesis moved from local Piper to **Cartesia**, for a native Colombian
+  voice.
 - A deployed, publicly reachable demo.
-- A knowledge base rebuilt from **freely redistributable clinical guidelines**.
+- A knowledge base rebuilt from **freely redistributable clinical guidelines**,
+  with citations verified against the retrieved evidence in code.
 
 Nothing in this repository redistributes third-party documents.
 
@@ -52,6 +55,24 @@ safety engine reads every word the patient says, before and independently of the
 language model — and keeps working if the model fails entirely.
 
 See [docs/arquitectura.md](docs/arquitectura.md).
+
+## The knowledge base
+
+Vera answers only from the documents in [`conocimiento/`](conocimiento/), and the
+citation is derived by code from what was actually retrieved — not from what the
+model claims. Every document declares its source and licence in `fuentes.json`,
+and the index refuses anything that does not.
+
+Two layers, because no public corpus holds a given patient's own paperwork:
+
+- **Public-domain clinical guidance in Spanish** — MedlinePlus health topics and
+  NIDDK pages, both US federal works, quoted verbatim.
+- **One discharge plan, fictional and declared as such**, standing in for what a
+  hospital writes for the patient it operated on. It is demonstration material
+  and not clinical advice for anyone.
+
+Nothing in this repository redistributes copyrighted third-party documents. See
+[conocimiento/README.md](conocimiento/README.md) for what was excluded and why.
 
 ## Status
 
