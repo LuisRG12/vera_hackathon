@@ -81,6 +81,45 @@ class Settings(BaseSettings):
     tts_acento: str = "colombian"
     tts_sample_rate: int = 24000
 
+    # --- Conocimiento: el corpus y su índice ---
+    # El modelo de embeddings se quedó local cuando el resto se fue a la nube:
+    # la consulta va en la ruta crítica del turno, antes de que Claude pueda
+    # empezar a responder, y un viaje de red más se oiría. Este es el que midió
+    # el proyecto original contra su alternativa (AUC 1,00 frente a 0,94) y el
+    # que la decisión 7 de arquitectura da por cabido en el despliegue.
+    embedding_modelo: str = "intfloat/multilingual-e5-large"
+
+    # Cuántos fragmentos se recuperan y cuántos ve el modelo. Son dos números
+    # porque recuperar de más es barato —ordena mejor— y mostrar de más no:
+    # cada fragmento son cientos de tokens en la ruta crítica del turno.
+    k_recuperados: int = 8
+    k_evidencia: int = 3
+
+    # El umbral de evidencia: por debajo, Vera no afirma nada clínico. Calibrado
+    # contra ESTE corpus con `evals/conocimiento.py`:
+    #
+    #   0.81 -> 16/16 respondidas, 0 rechazos falsos, 5 fugas
+    #   0.82 -> 15/16 respondidas, 1 rechazo falso,   3 fugas (ninguna clínica)
+    #   0.84 -> 11/16 respondidas, 5 rechazos falsos, 1 fuga
+    #
+    # Se queda 0,82: es donde las fugas clínicas llegan a cero —«¿puedo tomar
+    # cerveza?», que es el error que el proyecto original sí cometió, se abstiene
+    # con 0,817— y las tres que quedan son administrativas: el seguro, la
+    # incapacidad y el costo de la consulta. Esas no las separa ningún umbral
+    # —puntúan entre medio de preguntas legítimas— y subirlo hasta que caigan
+    # cuesta cinco respuestas buenas; de ellas se encarga la cita verificada.
+    #
+    # OJO: el número NO transfiere. Ni entre modelos de embeddings ni entre
+    # corpus, porque es un coseno contra los textos concretos que hay indexados.
+    # Que coincida con el 0,82 del proyecto original es casualidad: allá eran
+    # PDFs académicos, y aquí hasta el *pooling* del modelo es otro.
+    min_evidencia: float = 0.82
+
+    # La otra mitad del veredicto: términos clínicos exactos compartidos entre la
+    # pregunta y un fragmento. Rescata lo que el modelo denso diluye —«pus»,
+    # «fiebre», «38»—, que es justo el vocabulario de los signos de alarma.
+    min_lexico: int = 2
+
     # --- Red de seguridad ---
     # Guarda cada turno cerrado —lo transcrito y lo que el motor vio— en
     # `registros/turnos.jsonl`. Sirve para medir con habla real lo que el

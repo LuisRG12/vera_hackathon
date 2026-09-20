@@ -12,6 +12,12 @@ dependencies = [
     # declara aparte: es dependencia nuestra, no un detalle del servidor.
     "websockets>=13",
     "httpx>=0.27",
+    # Conocimiento: embeddings ONNX (sin torch) y BM25. El modelo de embeddings
+    # es la única pieza que sigue corriendo en esta máquina, y por eso no entra
+    # torch: fastembed ejecuta el ONNX directamente, que pesa 2 GB menos.
+    "fastembed>=0.4",
+    "rank-bm25>=0.2.2",
+    "numpy>=1.26",
 ]
 
 [tool.uv]
