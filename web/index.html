@@ -129,7 +129,8 @@ function mostrarAlerta(m) {
   const meta = d.querySelector('.meta');
   meta.textContent = `turno ${m.orden} · ` +
     (m.en_parcial ? 'saltó mientras el paciente hablaba' : 'saltó al cerrar el turno') +
-    ' · decidido por el motor determinista, sin modelo';
+    (m.origen === 'juez' ? ' · lo vio el juez, que sí entiende lo que las reglas no'
+                         : ' · decidido por el motor determinista, sin modelo');
   if (m.en_parcial) (adelantadas[m.orden] ||= []).push({ meta, t: Date.now() });
   alertas.prepend(d);
 }

@@ -190,6 +190,12 @@ async def main() -> int:
     alertas = ws.de_tipo("alerta")
     check("sale la alerta del juez", [a["concepto"] for a in alertas] == ["lo vio el juez"],
           str([a["concepto"] for a in alertas]))
+    # La tarjeta mostraba la respuesta de Vera como si fuera el reporte del
+    # paciente. Una alerta clínica no puede confundir quién dijo qué.
+    check("y cita lo que dijo el paciente, no lo que contestó Vera",
+          alertas[0]["texto"] == "siento como una presión aquí que me agarra"
+          and alertas[0]["orden"] == 1 and alertas[0]["origen"] == "juez",
+          str(alertas[0]))
     oido.oye("y sigo igual de mal", orden=2)
     await asyncio.sleep(0.1)
     check("y no se repite en cada turno", len(ws.de_tipo("alerta")) == 1)

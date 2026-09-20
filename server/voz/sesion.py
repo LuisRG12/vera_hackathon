@@ -109,6 +109,9 @@ class SesionLlamada:
         # valoración vuelve turno a turno, y repetirla sería el ruido que hace
         # que el equipo clínico deje de mirar las alertas.
         self._alerta_juez = False
+        # Lo último que dijo el paciente, y en qué turno: la alerta del juez
+        # tiene que citarlo a él.
+        self._dicho, self._orden = "", 0
 
     # ------------------------------------------------------- envío al cliente
     async def _enviar(self, dato: dict) -> None:
@@ -302,6 +305,11 @@ class SesionLlamada:
         Las alertas de la vigilancia salen de las reglas. Si el juez escala algo
         que las reglas no vieron —para eso está—, el equipo clínico tiene que
         enterarse igual, y hasta aquí eso solo se veía en la decisión del turno.
+
+        La alerta cita **lo que dijo el paciente**, no lo que contestó Vera. Se
+        vio en una llamada: la tarjeta mostraba la pregunta de Vera como si
+        fuera el reporte del paciente, que es exactamente lo que una alerta
+        clínica no puede confundir.
         """
         d = turno.decision
         if self._alerta_juez or d.source != "llm" or d.action not in ("escalate", "emergency"):
@@ -313,9 +321,10 @@ class SesionLlamada:
             "severidad": d.risk,
             "accion": d.action,
             "coincidencia": d.rationale.removeprefix("juez: ")[:160],
-            "texto": turno.utterance,
-            "orden": -1,
+            "texto": self._dicho,
+            "orden": self._orden,
             "en_parcial": False,
+            "origen": "juez",
         })
 
     async def _bajada(self) -> None:
@@ -346,6 +355,7 @@ class SesionLlamada:
                     "texto": a.texto,
                     "orden": a.orden,
                     "en_parcial": a.en_parcial,
+                    "origen": "reglas",
                 })
             await self._enviar({
                 "type": "oido",
@@ -368,6 +378,7 @@ class SesionLlamada:
                 continue
 
             self._anotar(t, lectura)
+            self._dicho, self._orden = t.texto, t.orden
             self._nuevo_turno(t.texto)
         # El reconocedor se cayó. Vera todavía puede hablar —su voz es otro
         # servicio—, así que lo dice en vez de colgar en silencio, y la llamada
