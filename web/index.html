@@ -1,95 +1,581 @@
 <!doctype html>
+<html lang="es">
 <meta charset="utf-8">
-<title>Vera — en construcción</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vera — seguimiento posoperatorio por voz</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { font: 15px/1.6 system-ui, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1.2rem; }
-  h1 { font-size: 1.3rem; margin-bottom: .2rem; }
-  .sub { color: #6b7280; margin-top: 0; }
-  button { font: inherit; padding: .6rem 1.2rem; border-radius: .5rem; border: 1px solid #6b7280;
+  :root {
+    color-scheme: light dark;
+    --fondo: #f7f7f5; --panel: #ffffff; --texto: #1c1f23; --suave: #5f6670;
+    --borde: #d9dcdf; --acento: #0f766e; --acento-suave: rgba(15,118,110,.10);
+    --yo: rgba(59,130,246,.12); --vera: rgba(120,120,120,.10);
+    --critico: #dc2626; --alto: #ea580c; --moderado: #b45309;
+    --aviso-fondo: #fff7e6; --aviso-borde: #f0c36d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #121417; --panel: #1b1e22; --texto: #e7e9ec; --suave: #9aa1aa;
+      --borde: #30353b; --acento: #2dd4bf; --acento-suave: rgba(45,212,191,.12);
+      --yo: rgba(59,130,246,.20); --vera: rgba(255,255,255,.06);
+      --aviso-fondo: rgba(240,195,109,.10); --aviso-borde: rgba(240,195,109,.45);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--texto);
+         font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 52rem; margin: 0 auto; padding: 1.6rem 16px 3rem; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+  h1 { font-size: 1.55rem; margin: 0; letter-spacing: -.01em; }
+  h1 span { color: var(--acento); }
+  .lema { margin: .35rem 0 0; color: var(--suave); max-width: 38rem; }
+  .idioma { display: flex; border: 1px solid var(--borde); border-radius: .5rem; overflow: hidden; flex: none; }
+  .idioma button { border: 0; border-radius: 0; padding: .35rem .7rem; font-size: .85rem; }
+  .idioma button[aria-pressed="true"] { background: var(--acento); color: #fff; }
+
+  .aviso { margin: 1rem 0 1.2rem; padding: .7rem .9rem; border-radius: .6rem; font-size: .88rem;
+           background: var(--aviso-fondo); border: 1px solid var(--aviso-borde); }
+  .aviso strong { display: block; margin-bottom: .1rem; }
+
+  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: .8rem;
+           padding: 1rem 1.1rem; margin: 1rem 0; }
+  .panel h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em;
+              color: var(--suave); margin: 0 0 .5rem; font-weight: 600; }
+  .paciente { display: grid; grid-template-columns: 1fr 1fr; gap: .2rem 1.5rem; }
+  .paciente p { margin: .15rem 0; }
+  .paciente .etiqueta { color: var(--suave); font-size: .82rem; }
+  @media (max-width: 640px) { .paciente { grid-template-columns: 1fr; } }
+
+  .sugerencias { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .sugerencia { text-align: left; padding: .45rem .7rem; border-radius: .6rem; line-height: 1.3;
+                border: 1px solid var(--borde); background: transparent; color: inherit;
+                cursor: pointer; font: inherit; font-size: .9rem; }
+  .sugerencia:hover { border-color: var(--acento); background: var(--acento-suave); }
+  .sugerencia small { display: block; color: var(--suave); font-size: .76rem; margin-top: .1rem; }
+  .sugerencia em { font-style: normal; color: var(--acento); }
+
+  .pestanas { display: flex; gap: .3rem; border-bottom: 1px solid var(--borde); margin-bottom: .9rem; }
+  .pestanas button { border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+                     background: none; padding: .45rem .8rem; color: var(--suave); }
+  .pestanas button[aria-selected="true"] { color: var(--texto); border-color: var(--acento); font-weight: 600; }
+
+  button { font: inherit; padding: .55rem 1.1rem; border-radius: .55rem; border: 1px solid var(--borde);
            background: transparent; color: inherit; cursor: pointer; }
+  button.primario { background: var(--acento); border-color: var(--acento); color: #fff; font-weight: 600; }
   button[disabled] { opacity: .45; cursor: default; }
-  #estado { margin: 1.2rem 0; padding: .6rem .9rem; border-radius: .5rem;
-            background: rgba(127,127,127,.12); font-size: .9rem; }
-  #vivo { min-height: 3.2rem; padding: .8rem 1rem; margin: 1rem 0; border-radius: .5rem;
-          border: 1px dashed #9ca3af; color: #6b7280; font-style: italic; }
-  .turno { padding: .7rem 1rem; margin: .45rem 0; border-radius: .5rem;
-           background: rgba(127,127,127,.12); }
-  .meta { font-size: .75rem; color: #6b7280; margin-top: .25rem; font-style: normal; }
+  form { display: flex; gap: .5rem; }
+  input { flex: 1; min-width: 0; font: inherit; padding: .55rem .8rem; border-radius: .55rem;
+          border: 1px solid var(--borde); background: transparent; color: inherit; }
+  .fila { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+  .nota-panel { color: var(--suave); font-size: .84rem; margin: .6rem 0 0; }
+  #estado { font-size: .88rem; color: var(--suave); }
+  #vivo { min-height: 2.6rem; padding: .6rem .8rem; margin-top: .8rem; border-radius: .5rem;
+          border: 1px dashed var(--borde); color: var(--suave); font-style: italic; }
+  [hidden] { display: none !important; }
 
-  .alerta { padding: .75rem 1rem; margin: .6rem 0; border-radius: .5rem; border-left: 4px solid; }
-  .alerta.critical { border-color: #dc2626; background: rgba(220,38,38,.13); }
-  .alerta.high     { border-color: #ea580c; background: rgba(234,88,12,.12); }
-  .alerta .cab { font-weight: 600; letter-spacing: .01em; }
-  .alerta .resp { margin-top: .5rem; padding-top: .45rem; border-top: 1px solid rgba(127,127,127,.3); }
+  #conversacion { display: flex; flex-direction: column; gap: .55rem; }
+  .vacia { color: var(--suave); font-size: .9rem; }
+  .yo, .vera { padding: .6rem .85rem; border-radius: .7rem; max-width: 88%; }
+  .yo { align-self: flex-end; background: var(--yo); }
+  .vera { align-self: flex-start; background: var(--vera); }
+  .vera.critical { border-left: 4px solid var(--critico); }
+  .vera.high     { border-left: 4px solid var(--alto); }
+  .eco { align-self: center; color: var(--suave); font-size: .8rem; font-style: italic; }
+  .meta { font-size: .75rem; color: var(--suave); margin-top: .3rem; }
+  .trad { font-size: .85rem; margin-top: .35rem; padding-top: .35rem;
+          border-top: 1px dashed var(--borde); color: var(--suave); font-style: italic; }
 
-  .chips { margin-top: .3rem; font-style: normal; }
+  .fuentes { margin-top: .45rem; display: flex; flex-direction: column; gap: .2rem; }
+  .fuente { font-size: .8rem; display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap; }
+  .fuente .rotulo { color: var(--acento); font-weight: 600; }
+  .fuente a { color: inherit; }
+  .fuente .demo { font-size: .68rem; padding: 0 .35rem; border-radius: .3rem;
+                  border: 1px solid var(--moderado); color: var(--moderado); }
+  .fuente.nada .rotulo { color: var(--suave); }
+
+  .chips { margin-top: .3rem; }
   .chip { display: inline-block; font-size: .72rem; padding: .05rem .5rem; margin: 0 .3rem .2rem 0;
-          border-radius: 1rem; border: 1px solid; }
-  .chip.critical { border-color: #dc2626; color: #dc2626; }
-  .chip.high     { border-color: #ea580c; color: #ea580c; }
-  .chip.moderate { border-color: #ca8a04; color: #ca8a04; }
-  .chip.low, .chip.none { border-color: #9ca3af; color: #6b7280; }
+          border-radius: 1rem; border: 1px solid; font-style: normal; }
+  .chip.critical { border-color: var(--critico); color: var(--critico); }
+  .chip.high     { border-color: var(--alto); color: var(--alto); }
+  .chip.moderate { border-color: var(--moderado); color: var(--moderado); }
+  .chip.low, .chip.none { border-color: var(--borde); color: var(--suave); }
 
-  h2 { font-size: 1.05rem; margin: 2.2rem 0 .1rem; }
-  form { display: flex; gap: .5rem; margin: .8rem 0; }
-  input { flex: 1; font: inherit; padding: .6rem .8rem; border-radius: .5rem;
-          border: 1px solid #9ca3af; background: transparent; color: inherit; }
-  #chat, #llamada { display: flex; flex-direction: column; gap: .5rem; }
-  .yo, .vera { padding: .6rem .9rem; border-radius: .6rem; max-width: 85%; }
-  .yo { align-self: flex-end; background: rgba(59,130,246,.15); }
-  .vera { align-self: flex-start; background: rgba(127,127,127,.12); }
-  .eco { align-self: center; color: #6b7280; font-size: .8rem; font-style: italic; }
-  .vera.critical { border-left: 4px solid #dc2626; }
-  .vera.high     { border-left: 4px solid #ea580c; }
+  .alerta { padding: .7rem .9rem; margin: .5rem 0; border-radius: .6rem; border-left: 4px solid; }
+  .alerta.critical { border-color: var(--critico); background: rgba(220,38,38,.10); }
+  .alerta.high     { border-color: var(--alto); background: rgba(234,88,12,.10); }
+  .alerta .cab { font-weight: 600; }
+  .alerta .por { font-size: .88rem; }
+  .pie { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+         color: var(--suave); font-size: .8rem; margin-top: 2rem; }
+  .pie a { color: inherit; }
 </style>
 
-<h1>Vera</h1>
-<p class="sub">En construcción. Por texto se prueba la cabeza: reglas, juez y respuesta de Claude. Por voz, la llamada completa.</p>
+<main>
+<header>
+  <div>
+    <h1>Vera <span>·</span> <span data-t="subtitulo"></span></h1>
+    <p class="lema" data-t="lema"></p>
+  </div>
+  <div class="idioma" role="group" aria-label="Idioma / Language">
+    <button id="es" aria-pressed="true">ES</button>
+    <button id="en" aria-pressed="false">EN</button>
+  </div>
+</header>
 
-<h2>Por texto</h2>
-<p class="sub">Escriba como si fuera el paciente. Vera responde con Claude Haiku, y las reglas y el juez deciden el riesgo en paralelo.</p>
-<form id="form-texto"><input id="entrada" placeholder="Me duele un poco la herida…" autocomplete="off"><button>Enviar</button></form>
-<div id="chat"></div>
+<div class="aviso" role="note">
+  <strong data-t="aviso_titulo"></strong>
+  <span data-t="aviso"></span>
+</div>
 
-<h2>Por voz</h2>
-<p class="sub">Una llamada con Vera: AssemblyAI oye, el motor determinista lee cada parcial antes que ningún modelo, Claude responde y Cartesia pone la voz. <strong>Por ahora, con audífonos</strong>: todavía no hay filtro de eco, y con parlantes el micrófono oiría a Vera.</p>
+<section class="panel">
+  <h2 data-t="paciente_titulo"></h2>
+  <div class="paciente">
+    <div>
+      <p class="etiqueta" data-t="paciente_cirugia_et"></p>
+      <p data-t="paciente_cirugia"></p>
+    </div>
+    <div>
+      <p class="etiqueta" data-t="paciente_docs_et"></p>
+      <p data-t="paciente_docs"></p>
+    </div>
+  </div>
+</section>
 
-<button id="btn">Llamar</button>
-<div id="estado">Sin conectar.</div>
+<section class="panel">
+  <h2 data-t="pruebe_titulo"></h2>
+  <div class="sugerencias" id="sugerencias"></div>
+  <p class="nota-panel" data-t="pruebe_nota"></p>
+</section>
+
+<section class="panel">
+  <div class="pestanas" role="tablist">
+    <button role="tab" id="tab-voz" aria-selected="true" data-t="tab_voz"></button>
+    <button role="tab" id="tab-texto" aria-selected="false" data-t="tab_texto"></button>
+  </div>
+
+  <div id="modo-voz">
+    <div class="fila">
+      <button id="btn" class="primario" data-t="llamar"></button>
+      <span id="estado"></span>
+    </div>
+    <p class="nota-panel" data-t="voz_nota"></p>
+    <div id="vivo">…</div>
+  </div>
+
+  <div id="modo-texto" hidden>
+    <form id="form-texto">
+      <input id="entrada" autocomplete="off">
+      <button class="primario" data-t="enviar"></button>
+    </form>
+    <p class="nota-panel" data-t="texto_nota"></p>
+  </div>
+</section>
+
 <div id="alertas"></div>
-<div id="vivo">…</div>
-<div id="llamada"></div>
+
+<section class="panel">
+  <div class="fila" style="justify-content: space-between">
+    <h2 data-t="conversacion_titulo" style="margin:0"></h2>
+    <button id="traducir" hidden data-t="traducir"></button>
+  </div>
+  <div id="conversacion" style="margin-top:.7rem"><p class="vacia" data-t="vacia"></p></div>
+</section>
+
+<div class="pie">
+  <span data-t="pie"></span>
+  <a href="/salud" target="_blank" rel="noopener" data-t="salud"></a>
+</div>
+</main>
 
 <script>
-const btn = document.getElementById('btn');
-const estado = document.getElementById('estado');
-const alertas = document.getElementById('alertas');
-const vivo = document.getElementById('vivo');
-const llamada = document.getElementById('llamada');
-let ws, ctx, ctxVoz, stream, t0, tParcial = 0;
-// Alertas que saltaron en un parcial, por turno: cuando ese turno cierre se
-// sabe cuánto se adelantó la alerta al cierre, que es lo que ganó leer parciales.
-let adelantadas = {};
-// Reproducción de Vera: los trozos se encadenan uno tras otro sin huecos, y cada
-// uno sabe de qué turno es. Al interrumpir se descarta todo lo de ese turno.
-let proximo = 0, fuentes = new Set(), callado = 0, sonandoAhora = false;
-let lineaVera = null;
-
-const ACCION = { critical: 'EMERGENCIA', high: 'ESCALAR AL EQUIPO CLÍNICO' };
-// Los conceptos del léxico son claves sin tildes; en pantalla se leen como una
-// errata. Solo los que la necesitan: el resto se lee bien cambiando el guion bajo.
-const NOMBRES = {
+// ------------------------------------------------------------ los dos idiomas
+// La conversación es SIEMPRE en español: lo que distingue a Vera es que entiende
+// cómo habla un paciente en Colombia, y traducir esa capa apagaría el
+// diferenciador. Lo que cambia con el idioma es todo lo demás —lo que explica la
+// pantalla—, y en inglés aparece un botón para traducir la transcripción.
+const T = {
+  es: {
+    subtitulo: 'seguimiento posoperatorio por voz',
+    lema: 'Llama al paciente recién operado, le responde solo con sus documentos —diciendo cuál— y avisa a su equipo clínico en cuanto aparece un signo de alarma.',
+    aviso_titulo: 'Demostración. No es un dispositivo médico ni reemplaza la atención clínica.',
+    aviso: 'La paciente y su plan de egreso son ficticios. Las guías que cita son públicas (MedlinePlus y NIDDK, dominio público). Si usted tiene una urgencia, llame a los servicios de emergencia.',
+    paciente_titulo: 'A quién llama Vera',
+    paciente_cirugia_et: 'Cirugía',
+    paciente_cirugia: 'Colecistectomía laparoscópica (le sacaron la vesícula), cirugía ambulatoria. Vera la llama para saber cómo sigue.',
+    paciente_docs_et: 'Lo que Vera puede citar',
+    paciente_docs: 'Su plan de egreso —baño, incisiones, medicamentos, actividad, alimentación, cuándo llamar, cuándo ir a urgencias— y 20 guías públicas, generales o de su procedimiento.',
+    pruebe_titulo: 'Pruebe con estas frases',
+    pruebe_nota: 'Con un clic se envían por texto. En la llamada por voz, léalas en voz alta. Vera entiende el español como lo habla un paciente en Colombia.',
+    tab_voz: 'Por voz', tab_texto: 'Por texto',
+    llamar: 'Llamar', colgar: 'Colgar',
+    voz_nota: 'Hable en español. La alerta al equipo puede saltar mientras usted todavía está hablando: las reglas leen cada palabra antes que cualquier modelo.',
+    enviar: 'Enviar', entrada: 'Escriba como si fuera la paciente…',
+    texto_nota: 'La misma conversación sin micrófono: reglas, juez y respuesta con citas.',
+    conversacion_titulo: 'La conversación', vacia: 'Todavía no hay conversación. Llame o escriba.',
+    traducir: 'Traducir al inglés', traduciendo: 'Traduciendo…', traducida: 'Traducida',
+    pie: 'Vera — hecho para el AssemblyAI Voice Agent Hackathon, septiembre de 2026.',
+    salud: 'estado del servicio',
+    sin_conectar: 'Sin conectar.', pidiendo_mic: 'Pidiendo el micrófono…',
+    sin_mic: 'No se pudo abrir el micrófono: ',
+    listo: (m) => `En llamada · oye ${m.stt} · piensa ${m.llm}` + (m.voz_sample_rate ? ' · habla con Cartesia' : ' · sin voz'),
+    ocupado: (m) => `Vera está atendiendo otras ${m.maximo} llamadas de demostración. Intente de nuevo en un par de minutos, o pruebe por texto.`,
+    adios_limite: 'La llamada llegó a su tiempo máximo de demostración.',
+    adios: (d) => `Vera cerró la llamada: ${d}.`,
+    terminada: 'Llamada terminada.', error: 'Error: ', aviso_srv: 'Aviso: ',
+    tu: 'Paciente', vera: 'Vera',
+    turno: 'turno', riesgo: 'riesgo', cierre: 'cierre del turno',
+    decidio: 'decidió', escrito_por: 'lo escribió', el_codigo: 'el código', el_modelo: 'el modelo',
+    primera_frase: 'primera frase', juez: 'juez',
+    fuente: 'Fuente', demo: 'plan ficticio', sin_evidencia: 'No está en sus documentos: la respuesta la escribió el código, sin que el modelo la viera.',
+    sin_cita: 'Sin fuente: no afirmó nada clínico.',
+    interrumpida: '(interrumpida)', eco_meta: 'el micrófono oyó a Vera: se descartó como eco, no es un turno de la paciente',
+    sin_responder: '(sin alcanzar a responder)',
+    alerta_emergencia: 'EMERGENCIA', alerta_escalar: 'AVISO AL EQUIPO CLÍNICO',
+    por: (c, t) => `por «${c}» en «${t}»`,
+    en_parcial: 'saltó mientras la paciente hablaba', al_cerrar: 'saltó al cerrar el turno',
+    origen_juez: 'lo vio el juez, que entiende lo que las reglas no', origen_reglas: 'lo decidió el motor determinista, sin modelo',
+    antes: (s) => `${s} s antes de que cerrara el turno`,
+    limite_texto: 'La conversación llegó a su máximo de demostración. Recargue la página para empezar otra.',
+    riesgos: { none: 'ninguno', low: 'bajo', moderate: 'moderado', high: 'alto', critical: 'crítico' },
+    acciones: { continue: 'seguir', advise: 'aconsejar', escalate: 'avisar al equipo', emergency: 'emergencia' },
+    fuentes_dec: { rules: 'las reglas', llm: 'el juez', both: 'reglas y juez', none: '—' },
+    marcas: { emergencia: 'emergencia', degradado_sin_modelo: 'sin modelo', respuesta_vacia: 'respuesta vacía',
+              sin_evidencia: 'sin evidencia', interrumpido: 'interrumpido' },
+    conceptos: {},
+  },
+  en: {
+    subtitulo: 'post-surgical follow-up by voice',
+    lema: 'It calls a recently operated patient, answers only from their own documents — citing which one — and alerts their care team the moment a red-flag symptom appears.',
+    aviso_titulo: 'Demo. Not a medical device, and not a substitute for clinical care.',
+    aviso: 'The patient and her discharge plan are fictional. The guidance it cites is public (MedlinePlus and NIDDK, public domain). If you have an emergency, call emergency services.',
+    paciente_titulo: 'Who Vera is calling',
+    paciente_cirugia_et: 'Surgery',
+    paciente_cirugia: 'Laparoscopic cholecystectomy (gallbladder removal), same-day surgery. Vera calls to check on her recovery.',
+    paciente_docs_et: 'What Vera can cite',
+    paciente_docs: 'Her discharge plan — bathing, incisions, pain medication, activity, diet, when to call, when to go to the ER — and 20 public guides, general or specific to her procedure.',
+    pruebe_titulo: 'Try these phrases',
+    pruebe_nota: 'One click sends them by text. On a voice call, read them aloud. The conversation is in Spanish on purpose: Vera understands Spanish the way a patient in Colombia actually speaks it.',
+    tab_voz: 'By voice', tab_texto: 'By text',
+    llamar: 'Call', colgar: 'Hang up',
+    voz_nota: 'Speak Spanish. The care-team alert can fire while you are still talking: the rules read every word before any model does.',
+    enviar: 'Send', entrada: 'Type as if you were the patient (in Spanish)…',
+    texto_nota: 'The same conversation without a microphone: rules, risk judge and a cited answer.',
+    conversacion_titulo: 'The conversation', vacia: 'No conversation yet. Call or type.',
+    traducir: 'Translate to English', traduciendo: 'Translating…', traducida: 'Translated',
+    pie: 'Vera — built for the AssemblyAI Voice Agent Hackathon, September 2026.',
+    salud: 'service status',
+    sin_conectar: 'Not connected.', pidiendo_mic: 'Requesting the microphone…',
+    sin_mic: 'Could not open the microphone: ',
+    listo: (m) => `On a call · hears with ${m.stt} · thinks with ${m.llm}` + (m.voz_sample_rate ? ' · speaks with Cartesia' : ' · no voice'),
+    ocupado: (m) => `Vera is on ${m.maximo} other demo calls. Please try again in a couple of minutes, or try it by text.`,
+    adios_limite: 'The call reached its maximum demo length.',
+    adios: (d) => `Vera ended the call: ${d}.`,
+    terminada: 'Call ended.', error: 'Error: ', aviso_srv: 'Notice: ',
+    tu: 'Patient', vera: 'Vera',
+    turno: 'turn', riesgo: 'risk', cierre: 'end of turn',
+    decidio: 'decided by', escrito_por: 'written by', el_codigo: 'code', el_modelo: 'the model',
+    primera_frase: 'first sentence', juez: 'judge',
+    fuente: 'Source', demo: 'fictional plan', sin_evidencia: 'Not in her documents: this answer was written by code, and the model never saw the question.',
+    sin_cita: 'No source: it made no clinical claim.',
+    interrumpida: '(interrupted)', eco_meta: 'the microphone picked up Vera: discarded as echo, not a patient turn',
+    sin_responder: '(interrupted before answering)',
+    alerta_emergencia: 'EMERGENCY', alerta_escalar: 'CARE TEAM ALERT',
+    por: (c, t) => `on “${c}” in “${t}”`,
+    en_parcial: 'fired while the patient was still speaking', al_cerrar: 'fired when the turn closed',
+    origen_juez: 'caught by the risk judge, which understands what the rules miss', origen_reglas: 'decided by the deterministic engine, no model involved',
+    antes: (s) => `${s} s before the turn closed`,
+    limite_texto: 'The conversation reached its demo maximum. Reload the page to start another one.',
+    riesgos: { none: 'none', low: 'low', moderate: 'moderate', high: 'high', critical: 'critical' },
+    acciones: { continue: 'continue', advise: 'advise', escalate: 'alert care team', emergency: 'emergency' },
+    fuentes_dec: { rules: 'the rules', llm: 'the judge', both: 'rules and judge', none: '—' },
+    marcas: { emergencia: 'emergency', degradado_sin_modelo: 'no model', respuesta_vacia: 'empty answer',
+              sin_evidencia: 'no evidence', interrumpido: 'interrupted' },
+    // Los 24 conceptos del léxico. Tabla fija y sin modelo: es lo que el juez
+    // lee cuando salta una alerta, y tiene que ser exacto.
+    conceptos: {
+      dificultad_respiratoria: 'shortness of breath', dolor_toracico: 'chest pain',
+      perdida_conciencia: 'loss of consciousness', convulsion: 'seizure',
+      ideacion_suicida: 'suicidal ideation', fiebre: 'fever', infeccion: 'infection',
+      sangrado_masivo: 'heavy bleeding', dehiscencia: 'wound opening', signos_tvp: 'signs of DVT',
+      compromiso_vascular: 'impaired circulation', taquicardia: 'racing heart',
+      dolor_brazo_izquierdo: 'left arm pain', alteracion_mental: 'confusion',
+      preeclampsia: 'pre-eclampsia signs', empeoramiento: 'getting worse', dolor_intenso: 'severe pain',
+      vomito_persistente: 'persistent vomiting', distension_abdominal: 'abdominal swelling',
+      diarrea: 'diarrhea', ictericia: 'jaundice', estado_general_malo: 'feeling very unwell',
+      animo_depresivo: 'low mood', retencion: 'urinary retention',
+    },
+  },
+};
+// Los conceptos son claves sin tildes; en pantalla en español se leerían como
+// una errata. Solo los que la necesitan: al resto le basta cambiar el guion bajo.
+T.es.conceptos = {
   infeccion: 'infección', dolor_toracico: 'dolor torácico', convulsion: 'convulsión',
   perdida_conciencia: 'pérdida de conciencia', ideacion_suicida: 'ideación suicida',
   signos_tvp: 'signos de trombosis', alteracion_mental: 'alteración mental',
   vomito_persistente: 'vómito persistente', distension_abdominal: 'distensión abdominal',
-  animo_depresivo: 'ánimo depresivo', retencion: 'retención',
-  dolor_brazo_izquierdo: 'dolor en el brazo izquierdo',
+  animo_depresivo: 'ánimo depresivo', retencion: 'retención urinaria',
+  dolor_brazo_izquierdo: 'dolor en el brazo izquierdo', dificultad_respiratoria: 'dificultad para respirar',
 };
-const nombre = c => NOMBRES[c] || c.replaceAll('_', ' ');
-const ACCION_TEXTO = { continue: 'seguir', advise: 'aconsejar', escalate: 'escalar al equipo', emergency: 'emergencia' };
-const FUENTE = { rules: 'las reglas', llm: 'el juez', both: 'reglas y juez', none: '—' };
+
+// Las frases sugeridas recorren las rutas que importan, en el orden de una
+// llamada. La glosa en inglés va siempre: quien evalúa sin hablar español tiene
+// que saber qué va a decir antes de decirlo.
+const SUGERENCIAS = [
+  { es: 'Oiga, ¿y cuándo me puedo bañar?', en: 'When can I shower?', ruta: { es: 'responde con su plan de egreso', en: 'answered from her discharge plan' } },
+  { es: '¿El acetaminofén me sirve si me da fiebre?', en: 'Does acetaminophen help if I get a fever?', ruta: { es: 'guía pública + su plan', en: 'public guide + her plan' } },
+  { es: '¿Puedo tomarme una cervecita el fin de semana?', en: 'Can I have a beer this weekend?', ruta: { es: 'no está en sus documentos: se abstiene', en: 'not in her documents: abstains' } },
+  { es: 'La herida está como botando materia', en: 'The wound is sort of oozing pus', ruta: { es: 'alarma: avisa al equipo', en: 'red flag: alerts care team' } },
+  { es: 'Me está dando como una presión aquí en el pecho', en: 'I\'m getting a pressure right here in my chest', ruta: { es: 'emergencia, escrita por el código', en: 'emergency, written by code' } },
+];
+
+let lang = 'es';
+try { if (localStorage.getItem('vera-idioma') === 'en') lang = 'en'; } catch {}
+const t = (k) => T[lang][k];
+const concepto = (c) => T[lang].conceptos[c] || c.replaceAll('_', ' ');
+
+function aplicarIdioma() {
+  document.documentElement.lang = lang;
+  for (const el of document.querySelectorAll('[data-t]')) {
+    const v = t(el.dataset.t);
+    if (typeof v === 'string') el.textContent = v;
+  }
+  document.getElementById('es').setAttribute('aria-pressed', lang === 'es');
+  document.getElementById('en').setAttribute('aria-pressed', lang === 'en');
+  entrada.placeholder = t('entrada');
+  btn.textContent = ws ? t('colgar') : t('llamar');
+  if (!ws && !estado.dataset.fijo) estado.textContent = t('sin_conectar');
+  traducirBtn.hidden = lang !== 'en' || !lineas.length;
+  pintarSugerencias();
+  repintar();
+}
+
+function cambiarIdioma(l) {
+  lang = l;
+  try { localStorage.setItem('vera-idioma', l); } catch {}
+  aplicarIdioma();
+}
+
+function pintarSugerencias() {
+  const cont = document.getElementById('sugerencias');
+  cont.textContent = '';
+  for (const s of SUGERENCIAS) {
+    const b = document.createElement('button');
+    b.className = 'sugerencia';
+    b.type = 'button';
+    b.textContent = s.es;
+    const g = document.createElement('small');
+    g.innerHTML = lang === 'en' ? `${s.en} · <em></em>` : '<em></em>';
+    g.querySelector('em').textContent = s.ruta[lang];
+    b.appendChild(g);
+    b.onclick = () => { mostrarModo('texto'); enviarTexto(s.es); };
+    cont.appendChild(b);
+  }
+}
+
+// ------------------------------------------------------------ la conversación
+const conversacion = document.getElementById('conversacion');
+const alertas = document.getElementById('alertas');
+const traducirBtn = document.getElementById('traducir');
+// Lo que se puede traducir, en orden, con el elemento debajo del cual va.
+let lineas = [];
+// Lo que depende del idioma y ya está en pantalla: se vuelve a construir al
+// cambiarlo. Sin esto, quien pasa a inglés a mitad de conversación ve la
+// pantalla nueva en inglés y todo lo anterior en español.
+let repintables = [];
+let alertasHist = [];
+
+function limpiarConversacion() {
+  conversacion.textContent = '';
+  alertas.textContent = '';
+  lineas = [];
+  repintables = [];
+  alertasHist = [];
+  traducirBtn.hidden = true;
+}
+
+function repintable(d, construir) {
+  const r = { construir, el: construir() };
+  d.appendChild(r.el);
+  repintables.push(r);
+  return r;
+}
+
+function repintar() {
+  for (const r of repintables) { const n = r.construir(); r.el.replaceWith(n); r.el = n; }
+  pintarAlertas();
+}
+
+function burbuja(clase, texto) {
+  conversacion.querySelector('.vacia')?.remove();
+  const d = document.createElement('div');
+  d.className = clase;
+  const cuerpo = document.createElement('div');
+  cuerpo.className = 'cuerpo';
+  cuerpo.textContent = texto;
+  d.appendChild(cuerpo);
+  conversacion.appendChild(d);
+  d.scrollIntoView({ block: 'nearest' });
+  return d;
+}
+
+function metaEl(texto) {
+  const m = document.createElement('div');
+  m.className = 'meta';
+  m.textContent = texto;
+  return m;
+}
+
+// La traducción va justo debajo de lo que traduce: `ancla` es el cuerpo de la
+// burbuja, no la burbuja. Anexarla al final la dejaba debajo del motivo del juez.
+function registrar(ancla, texto) {
+  if (!texto) return;
+  lineas.push({ ancla, texto });
+  if (lang === 'en') traducirBtn.hidden = false;
+}
+
+function chips(senales) {
+  const d = document.createElement('div');
+  d.className = 'chips';
+  for (const s of senales || []) {
+    const c = document.createElement('span');
+    c.className = 'chip ' + s.severidad;
+    c.textContent = `${concepto(s.concepto)} · «${s.coincidencia}»`;
+    d.appendChild(c);
+  }
+  return d;
+}
+
+// La cita es lo que distingue una respuesta de Vera de una respuesta de un
+// modelo: se muestra en cada turno, con enlace al documento tal como se indexó.
+function fuentes(m) {
+  const f = document.createElement('div');
+  f.className = 'fuentes';
+  if (m.citas?.length) {
+    for (const c of m.citas) {
+      const l = document.createElement('div');
+      l.className = 'fuente';
+      l.innerHTML = '<span class="rotulo"></span><a target="_blank" rel="noopener"></a>';
+      l.querySelector('.rotulo').textContent = t('fuente');
+      const a = l.querySelector('a');
+      a.href = '/documentos/' + encodeURIComponent(c.documento);
+      a.textContent = `${c.documento} § ${c.seccion}`;
+      if (c.ficticio) {
+        const b = document.createElement('span');
+        b.className = 'demo';
+        b.textContent = t('demo');
+        l.appendChild(b);
+      }
+      f.appendChild(l);
+    }
+  } else {
+    const l = document.createElement('div');
+    l.className = 'fuente nada';
+    l.innerHTML = '<span class="rotulo"></span>';
+    l.querySelector('.rotulo').textContent = m.marca === 'sin_evidencia' ? t('sin_evidencia') : t('sin_cita');
+    f.appendChild(l);
+  }
+  return f;
+}
+
+function pieVera(m, conJuez) {
+  const p = document.createElement('div');
+  const l = m.latencia || {};
+  const marca = m.marca !== 'ok' ? ` (${T[lang].marcas[m.marca] || m.marca})` : '';
+  p.appendChild(metaEl(`${t('riesgo')} ${T[lang].riesgos[m.riesgo] || m.riesgo} · ${T[lang].acciones[m.accion] || m.accion}` +
+    ` · ${t('decidio')} ${T[lang].fuentes_dec[m.fuente] || m.fuente}` +
+    ` · ${t('escrito_por')} ${m.redactado_por === 'codigo' ? t('el_codigo') : t('el_modelo')}${marca}` +
+    ` · ${t('primera_frase')} ${l.primera_frase_ms ?? '—'} ms` +
+    (conJuez ? ` · ${t('juez')} ${l.juez_ms ?? '—'} ms` : '')));
+  p.appendChild(fuentes(m));
+  return p;
+}
+
+function cerrarTurnoVera(d, m, conJuez) {
+  d.classList.add(m.riesgo);
+  repintable(d, () => pieVera(m, conJuez));
+  const cuerpo = d.querySelector('.cuerpo');
+  registrar(cuerpo, cuerpo.textContent);
+  // El motivo es del juez y viene en español: no se repinta, se traduce.
+  if (m.motivo) { const r = metaEl(m.motivo); d.appendChild(r); registrar(r, m.motivo); }
+}
+
+function mostrarAlerta(m) {
+  const a = { m, antes: null, t: Date.now() };
+  alertasHist.push(a);
+  if (m.en_parcial) (adelantadas[m.orden] ||= []).push(a);
+  pintarAlertas();
+}
+
+function pintarAlertas() {
+  alertas.textContent = '';
+  for (const { m, antes } of alertasHist) {
+    const d = document.createElement('div');
+    d.className = 'alerta ' + m.severidad;
+    d.innerHTML = '<div class="cab"></div><div class="por"></div><div class="meta"></div>';
+    const titulo = m.severidad === 'critical' ? t('alerta_emergencia') : t('alerta_escalar');
+    d.querySelector('.cab').textContent = `${titulo} · ${concepto(m.concepto)}`;
+    d.querySelector('.por').textContent = T[lang].por(m.coincidencia, m.texto);
+    d.querySelector('.meta').textContent =
+      `${t('turno')} ${m.orden} · ${m.en_parcial ? t('en_parcial') : t('al_cerrar')} · ` +
+      (m.origen === 'juez' ? t('origen_juez') : t('origen_reglas')) +
+      (antes ? ' · ' + T[lang].antes(antes) : '');
+    alertas.prepend(d);
+  }
+}
+
+traducirBtn.onclick = async () => {
+  const pendientes = lineas.filter(x => !x.traducida);
+  if (!pendientes.length) return;
+  traducirBtn.disabled = true;
+  traducirBtn.textContent = t('traduciendo');
+  try {
+    const r = await fetch('/traducir', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                         body: JSON.stringify({ lineas: pendientes.map(x => x.texto) }) });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    j.traducciones.forEach((tr, i) => {
+      if (!tr) return;
+      const d = document.createElement('div');
+      d.className = 'trad';
+      d.textContent = tr;
+      pendientes[i].ancla.after(d);
+      pendientes[i].traducida = true;
+    });
+    traducirBtn.textContent = t('traducida');
+  } catch (e) {
+    traducirBtn.textContent = t('traducir');
+    estado.textContent = t('error') + e.message;
+  } finally {
+    traducirBtn.disabled = false;
+    setTimeout(() => { traducirBtn.textContent = t('traducir'); }, 1500);
+  }
+};
+
+// ------------------------------------------------------------ pestañas
+function mostrarModo(m) {
+  document.getElementById('modo-voz').hidden = m !== 'voz';
+  document.getElementById('modo-texto').hidden = m !== 'texto';
+  document.getElementById('tab-voz').setAttribute('aria-selected', m === 'voz');
+  document.getElementById('tab-texto').setAttribute('aria-selected', m === 'texto');
+}
+document.getElementById('tab-voz').onclick = () => mostrarModo('voz');
+document.getElementById('tab-texto').onclick = () => mostrarModo('texto');
+
+// ------------------------------------------------------------ por voz
+const btn = document.getElementById('btn');
+const estado = document.getElementById('estado');
+const vivo = document.getElementById('vivo');
+let ws, ctx, ctxVoz, stream, tParcial = 0;
+// Alertas que saltaron en un parcial, por turno: cuando ese turno cierre se sabe
+// cuánto se adelantó la alerta al cierre, que es lo que ganó leer parciales.
+let adelantadas = {};
+// Reproducción de Vera: los trozos se encadenan sin huecos y cada uno sabe de qué
+// turno es. Al interrumpir se descarta todo lo de ese turno.
+let proximo = 0, fuentesAudio = new Set(), callado = 0, sonandoAhora = false;
+let lineaVera = null;
+// Si Vera se despidió, colgar no puede cortar la despedida a la mitad: el
+// servidor ya mandó todo el audio y cierra, y el navegador lo deja sonar.
+let despedida = false;
 
 const WORKLET = `
 class Captura extends AudioWorkletProcessor {
@@ -108,51 +594,6 @@ class Captura extends AudioWorkletProcessor {
 }
 registerProcessor('captura', Captura);`;
 
-function chips(senales) {
-  const d = document.createElement('div');
-  d.className = 'chips';
-  for (const s of senales || []) {
-    const c = document.createElement('span');
-    c.className = 'chip ' + s.severidad;
-    c.textContent = `${nombre(s.concepto)} · «${s.coincidencia}»`;
-    d.appendChild(c);
-  }
-  return d;
-}
-
-function mostrarAlerta(m) {
-  const d = document.createElement('div');
-  d.className = 'alerta ' + m.severidad;
-  d.innerHTML = '<div class="cab"></div><div class="por"></div><div class="meta"></div>';
-  d.querySelector('.cab').textContent = `${ACCION[m.severidad]} · ${nombre(m.concepto)}`;
-  d.querySelector('.por').textContent = `por «${m.coincidencia}» en «${m.texto}»`;
-  const meta = d.querySelector('.meta');
-  meta.textContent = `turno ${m.orden} · ` +
-    (m.en_parcial ? 'saltó mientras el paciente hablaba' : 'saltó al cerrar el turno') +
-    (m.origen === 'juez' ? ' · lo vio el juez, que sí entiende lo que las reglas no'
-                         : ' · decidido por el motor determinista, sin modelo');
-  if (m.en_parcial) (adelantadas[m.orden] ||= []).push({ meta, t: Date.now() });
-  alertas.prepend(d);
-}
-
-function linea(clase, texto) {
-  const d = document.createElement('div');
-  d.className = clase;
-  d.textContent = texto;
-  llamada.appendChild(d);
-  d.scrollIntoView({ block: 'nearest' });
-  return d;
-}
-
-function nota(d, texto) {
-  const m = document.createElement('div');
-  m.className = 'meta';
-  m.textContent = texto;
-  d.appendChild(m);
-  return m;
-}
-
-// ------------------------------------------------------------ la voz de Vera
 function avisarSonando(v) {
   // El servidor solo sabe cuándo terminó de mandar el audio, no cuándo terminó
   // de sonar. Se lo dice el navegador: mientras Vera suena no hay silencio que
@@ -176,25 +617,26 @@ function reproducir(buf) {
   const inicio = Math.max(proximo, ctxVoz.currentTime + 0.03);
   src.start(inicio);
   proximo = inicio + trozo.duration;
-  fuentes.add(src);
+  fuentesAudio.add(src);
   avisarSonando(true);
-  src.onended = () => { fuentes.delete(src); if (!fuentes.size) avisarSonando(false); };
+  src.onended = () => { fuentesAudio.delete(src); if (!fuentesAudio.size) avisarSonando(false); };
 }
 
 function callar(hasta) {
   callado = Math.max(callado, hasta);
-  for (const s of fuentes) { try { s.stop(); } catch {} }
-  fuentes.clear();
+  for (const s of fuentesAudio) { try { s.stop(); } catch {} }
+  fuentesAudio.clear();
   proximo = 0;
   avisarSonando(false);
-  if (lineaVera) { nota(lineaVera, '(interrumpida)'); lineaVera = null; }
+  if (lineaVera) { repintable(lineaVera, () => metaEl(t('interrumpida'))); lineaVera = null; }
 }
 
-// ------------------------------------------------------------ la llamada
+function fijarEstado(texto) { estado.textContent = texto; estado.dataset.fijo = '1'; }
+
 btn.onclick = async () => {
   if (ws) return parar();
-  btn.textContent = 'Colgar';
-  estado.textContent = 'Pidiendo micrófono…';
+  btn.textContent = t('colgar');
+  fijarEstado(t('pidiendo_mic'));
   // El contexto de reproducción se crea aquí, dentro del clic: los navegadores
   // no dejan sonar audio que no empezó con un gesto de quien usa la página.
   ctxVoz = new AudioContext({ sampleRate: 24000 });
@@ -205,15 +647,14 @@ btn.onclick = async () => {
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
     });
   } catch (e) {
-    estado.textContent = 'No se pudo abrir el micrófono: ' + e.message;
-    btn.textContent = 'Llamar';
+    fijarEstado(t('sin_mic') + e.message);
+    btn.textContent = t('llamar');
     return;
   }
 
-  alertas.textContent = '';
-  llamada.textContent = '';
+  limpiarConversacion();
   adelantadas = {};
-  callado = 0; proximo = 0; lineaVera = null;
+  callado = 0; proximo = 0; lineaVera = null; despedida = false;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/llamada`);
   ws.binaryType = 'arraybuffer';
@@ -221,13 +662,17 @@ btn.onclick = async () => {
   ws.onmessage = ev => {
     if (ev.data instanceof ArrayBuffer) { reproducir(ev.data); return; }
     const m = JSON.parse(ev.data);
-    if (m.type === 'error')    { estado.textContent = 'Error: ' + m.detalle; parar(); return; }
-    if (m.type === 'inactiva') { estado.textContent = 'Llamada ' + m.detalle + '.'; parar(); return; }
-    if (m.type === 'aviso')    { estado.textContent = 'Aviso: ' + m.detalle; return; }
-    if (m.type === 'adios')    { estado.textContent = 'Vera se despidió: ' + m.detalle + '.'; return; }
+    if (m.type === 'ocupado')  { fijarEstado(T[lang].ocupado(m)); parar(); return; }
+    if (m.type === 'error')    { fijarEstado(t('error') + m.detalle); parar(); return; }
+    if (m.type === 'inactiva') { fijarEstado(t('terminada')); parar(); return; }
+    if (m.type === 'aviso')    { fijarEstado(t('aviso_srv') + m.detalle); return; }
+    if (m.type === 'adios') {
+      despedida = true;
+      fijarEstado(m.motivo ? t('adios_limite') : T[lang].adios(m.detalle));
+      return;
+    }
     if (m.type === 'listo') {
-      estado.textContent = `Oyendo con ${m.stt} (${m.modo}) · piensa ${m.llm} · ` +
-        (m.voz_sample_rate ? `habla con Cartesia a ${m.voz_sample_rate} Hz` : 'sin voz');
+      fijarEstado(T[lang].listo(m));
       arrancarAudio(m.sample_rate);
       return;
     }
@@ -236,58 +681,59 @@ btn.onclick = async () => {
     if (m.type === 'descartado') {
       // Se dice, no se calla: un turno que desaparece sin rastro es
       // indistinguible de un micrófono que no funciona.
-      nota(linea('eco', `(el micrófono oyó a Vera: «${m.texto}»)`), 'descartado como eco');
+      repintable(burbuja('eco', `«${m.texto}»`), () => metaEl(t('eco_meta')));
       return;
     }
     if (m.type === 'frase') {
       // Cada frase llega antes que su audio: se ve en cuanto existe.
-      if (!lineaVera) lineaVera = linea('vera', m.texto);
-      else lineaVera.firstChild.textContent += ' ' + m.texto;
+      if (!lineaVera) lineaVera = burbuja('vera', m.texto);
+      else lineaVera.querySelector('.cuerpo').textContent += ' ' + m.texto;
       lineaVera.scrollIntoView({ block: 'nearest' });
       return;
     }
     if (m.type === 'vera') {
-      const d = lineaVera || linea('vera', m.utterance || '(sin alcanzar a responder)');
-      d.classList.add(m.riesgo);
-      const l = m.latencia || {};
-      nota(d, `riesgo ${m.riesgo} · ${ACCION_TEXTO[m.accion]} · decidió ${FUENTE[m.fuente]}` +
-        ` · escrito por ${m.redactado_por === 'codigo' ? 'el código' : 'el modelo'}` +
-        (m.marca !== 'ok' ? ` (${m.marca})` : '') +
-        ` · primera frase ${l.primera_frase_ms ?? '—'} ms`);
+      const d = lineaVera || burbuja('vera', m.utterance || t('sin_responder'));
+      cerrarTurnoVera(d, m, false);
       lineaVera = null;
       return;
     }
     if (m.type !== 'oido') return;
 
     if (m.cerrado) {
-      // Lo que interesa medir no es cuánto llevas conectado sino cuánto tardó
-      // en cerrar el turno desde que dejaste de hablar.
-      const cierre = tParcial ? ((Date.now() - tParcial) / 1000).toFixed(2) + 's' : '—';
-      for (const a of adelantadas[m.orden] || []) {
-        a.meta.textContent += ` · ${((Date.now() - a.t) / 1000).toFixed(2)} s antes de cerrar el turno`;
-      }
+      // Lo que interesa medir no es cuánto lleva conectado sino cuánto tardó en
+      // cerrar el turno desde que dejó de hablar.
+      const cierre = tParcial ? ((Date.now() - tParcial) / 1000).toFixed(2) + ' s' : '—';
+      for (const a of adelantadas[m.orden] || []) a.antes = ((Date.now() - a.t) / 1000).toFixed(2);
+      if (adelantadas[m.orden]) pintarAlertas();
       delete adelantadas[m.orden];
       vivo.textContent = '…';
       tParcial = 0;
       lineaVera = null;
-      const d = linea('yo', m.texto);
-      nota(d, `turno ${m.orden} · riesgo ${m.riesgo} · cierre +${cierre}`);
-      d.appendChild(chips(m.senales));
+      const d = burbuja('yo', m.texto);
+      registrar(d.querySelector('.cuerpo'), m.texto);
+      repintable(d, () => {
+        const p = document.createElement('div');
+        p.appendChild(metaEl(`${t('turno')} ${m.orden} · ${t('riesgo')} ${T[lang].riesgos[m.riesgo] || m.riesgo} · ${t('cierre')} +${cierre}`));
+        p.appendChild(chips(m.senales));
+        return p;
+      });
     } else {
       vivo.textContent = m.texto;
       vivo.appendChild(chips(m.senales));
       tParcial = Date.now();
     }
   };
-  ws.onclose = () => { if (ws) estado.textContent = 'Llamada terminada.'; parar(); };
+  ws.onclose = () => {
+    if (ws && !despedida) fijarEstado(t('terminada'));
+    parar();
+  };
 };
 
 async function arrancarAudio(rate) {
-  t0 = Date.now();
   // Pedir el sample rate directamente evita remuestrear a mano: el navegador lo
   // hace bien y es una fuente menos de ruido en una prueba de reconocimiento.
   ctx = new AudioContext({ sampleRate: rate });
-  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], {type:'text/javascript'})));
+  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
   const nodo = new AudioWorkletNode(ctx, 'captura');
   nodo.port.onmessage = e => { if (ws?.readyState === 1) ws.send(e.data); };
   ctx.createMediaStreamSource(stream).connect(nodo);
@@ -295,71 +741,65 @@ async function arrancarAudio(rate) {
 }
 
 function parar() {
-  btn.textContent = 'Llamar';
+  btn.textContent = t('llamar');
   vivo.textContent = '…';
   if (ws) { const w = ws; ws = null; w.close(); }
-  callar(Number.MAX_SAFE_INTEGER);
-  stream?.getTracks().forEach(t => t.stop());
+  if (!despedida) callar(Number.MAX_SAFE_INTEGER);
+  stream?.getTracks().forEach(tr => tr.stop());
   ctx?.close();
   ctx = stream = null;
 }
 
 // ------------------------------------------------------------ por texto
-const chat = document.getElementById('chat');
 const entrada = document.getElementById('entrada');
-let wsTexto, burbuja, colaTexto = [];
-
-function burbujaDe(clase, texto) {
-  const d = document.createElement('div');
-  d.className = clase;
-  d.textContent = texto;
-  chat.appendChild(d);
-  d.scrollIntoView({ block: 'nearest' });
-  return d;
-}
+let wsTexto, burbujaTexto, colaTexto = [], textoCerrado = false;
 
 function abrirTexto() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   wsTexto = new WebSocket(`${proto}://${location.host}/ws/texto`);
-  wsTexto.onopen = () => { colaTexto.forEach(t => wsTexto.send(t)); colaTexto = []; };
+  wsTexto.onopen = () => { colaTexto.forEach(x => wsTexto.send(x)); colaTexto = []; };
   wsTexto.onclose = () => { wsTexto = null; };
   wsTexto.onmessage = ev => {
     const m = JSON.parse(ev.data);
     if (m.type === 'speak') {
       // Cada frase llega en cuanto está completa, que es cuando en la llamada
       // empezaría a sonar: se ve aquí lo que el paciente oiría.
-      burbuja ||= burbujaDe('vera', '');
-      burbuja.textContent += (burbuja.textContent ? ' ' : '') + m.texto;
+      burbujaTexto ||= burbuja('vera', '');
+      const c = burbujaTexto.querySelector('.cuerpo');
+      c.textContent += (c.textContent ? ' ' : '') + m.texto;
+      return;
+    }
+    if (m.type === 'adios') {
+      textoCerrado = true;
+      if (burbujaTexto) repintable(burbujaTexto, () => metaEl(t('limite_texto')));
+      burbujaTexto = null;
       return;
     }
     if (m.type !== 'turno') return;
-    burbuja ||= burbujaDe('vera', m.utterance);
-    burbuja.classList.add(m.riesgo);
-    const l = m.latencia || {};
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.textContent = `riesgo ${m.riesgo} · ${ACCION_TEXTO[m.accion]} · decidió ${FUENTE[m.fuente]}` +
-      ` · escrito por ${m.redactado_por === 'codigo' ? 'el código' : 'el modelo'}` +
-      (m.marca !== 'ok' ? ` (${m.marca})` : '') +
-      ` · primera frase ${l.primera_frase_ms ?? '—'} ms · juez ${l.juez_ms ?? '—'} ms`;
-    const motivo = document.createElement('div');
-    motivo.className = 'meta';
-    motivo.textContent = m.motivo;
-    burbuja.append(meta, motivo);
-    burbuja.scrollIntoView({ block: 'nearest' });
-    burbuja = null;
+    burbujaTexto ||= burbuja('vera', m.utterance);
+    cerrarTurnoVera(burbujaTexto, m, true);
+    burbujaTexto = null;
   };
+}
+
+function enviarTexto(texto) {
+  if (!texto || textoCerrado) return;
+  registrar(burbuja('yo', texto).querySelector('.cuerpo'), texto);
+  burbujaTexto = null;
+  const msg = JSON.stringify({ texto });
+  if (wsTexto?.readyState === 1) wsTexto.send(msg);
+  else { colaTexto.push(msg); if (!wsTexto) abrirTexto(); }
 }
 
 document.getElementById('form-texto').onsubmit = e => {
   e.preventDefault();
   const texto = entrada.value.trim();
-  if (!texto) return;
   entrada.value = '';
-  burbujaDe('yo', texto);
-  burbuja = null;
-  const msg = JSON.stringify({ texto });
-  if (wsTexto?.readyState === 1) wsTexto.send(msg);
-  else { colaTexto.push(msg); if (!wsTexto) abrirTexto(); }
+  enviarTexto(texto);
 };
+
+document.getElementById('es').onclick = () => cambiarIdioma('es');
+document.getElementById('en').onclick = () => cambiarIdioma('en');
+aplicarIdioma();
 </script>
+</html>

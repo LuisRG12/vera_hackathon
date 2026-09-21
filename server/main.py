@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 
 from server.config import settings
 from server.dialogo.prompts import (
@@ -138,11 +138,36 @@ def _estado_conocimiento() -> dict:
     }
 
 
+@app.get("/documentos/{archivo}")
+async def documento(archivo: str):
+    """El documento citado, tal como se indexó, para seguir una cita hasta su fuente.
+
+    Solo sirve lo declarado en `fuentes.json`: el nombre se busca en el
+    manifiesto y no se usa como ruta, así que no hay forma de pedir otro archivo.
+    La cabecera con fuente y licencia la pone esta respuesta, no el documento:
+    en el documento se indexaría y competiría con el texto clínico.
+    """
+    from server.conocimiento.indice import CORPUS, documentos_declarados
+    meta = documentos_declarados().get(archivo)
+    if meta is None:
+        return PlainTextResponse("documento no declarado en el corpus", status_code=404)
+    cabecera = "\n".join(filter(None, [
+        meta["titulo"],
+        f"Fuente: {meta['fuente']}",
+        meta.get("url"),
+        f"Licencia: {meta['licencia']}",
+    ]))
+    texto = (CORPUS / archivo).read_text(encoding="utf-8")
+    return PlainTextResponse(f"{cabecera}\n\n{'─' * 60}\n\n{texto}")
+
+
 @app.post("/traducir")
 async def traducir_transcripcion(pedido: dict):
     """La transcripción en inglés, a demanda. Ver server/traduccion.py."""
     from server.traduccion import traducir
-    lineas = [str(x) for x in (pedido.get("lineas") or []) if str(x).strip()]
+    # Sin filtrar las vacías: la respuesta se alinea por posición con lo que
+    # hay en pantalla, y quitar una desplazaría todas las traducciones.
+    lineas = [str(x) for x in (pedido.get("lineas") or [])]
     try:
         return JSONResponse({"traducciones": await traducir(app.state.llm, lineas)})
     except Exception as exc:  # noqa: BLE001 — la pantalla lo dice; la llamada no se entera
