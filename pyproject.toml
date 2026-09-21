@@ -39,3 +39,4 @@ select = ["E", "F", "I", "UP", "B"]
 # literalmente lo que el modelo lee.
 "server/seguridad/juez.py" = ["E501"]
 "server/dialogo/prompts.py" = ["E501"]
+"server/traduccion.py" = ["E501"]

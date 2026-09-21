@@ -24,12 +24,15 @@ from server.dialogo.prompts import (
     DEGRADADO,
     DEGRADADO_CON_ALARMA,
     DESPEDIDA_FINAL,
+    LIMITE,
     RETOMAR_SILENCIO,
     SALUDO,
+    SIN_INFORMACION,
     SIN_OIDO,
     SIN_RESPUESTA,
 )
 from server.dialogo.turno import Conversacion
+from server.limites import Cupo, Presupuesto
 from server.modelo.llm import StructuredLLM
 from server.seguridad.lexico import LEXICON
 from server.seguridad.respuestas import ACOMPANAR, EMERGENCIA
@@ -42,8 +45,13 @@ WEB = Path(__file__).resolve().parent.parent / "web"
 # Lo que Vera dice escrito por el código. Se sintetiza al arrancar y queda en
 # disco: suena al instante y suena aunque Cartesia se caiga, que es justo cuando
 # más falta hacen la emergencia y los respaldos.
+#
+# `SIN_INFORMACION` entró con la etapa del conocimiento y se quedó fuera de esta
+# lista: la escribe el código, pero sonaba sintetizada en vivo, así que tardaba
+# lo que tarda Cartesia y no sonaba si Cartesia se caía.
 FRASES_FIJAS = [SALUDO, EMERGENCIA, ACOMPANAR, DEGRADADO, DEGRADADO_CON_ALARMA,
-                SIN_RESPUESTA, RETOMAR_SILENCIO, DESPEDIDA_FINAL, SIN_OIDO]
+                SIN_RESPUESTA, RETOMAR_SILENCIO, DESPEDIDA_FINAL, SIN_OIDO,
+                SIN_INFORMACION, LIMITE]
 
 
 @asynccontextmanager
@@ -53,6 +61,7 @@ async def ciclo(app: FastAPI):
     # costaba medio segundo hasta la primera frase.
     app.state.llm = StructuredLLM()
     app.state.recuperador = _abrir_conocimiento()
+    app.state.cupo = Cupo(settings.max_llamadas_simultaneas)
     app.state.fijas = FrasesFijas()
     app.state.fijas_listas = await app.state.fijas.preparar(FRASES_FIJAS) \
         if settings.tts_configurado else {"sin_clave": len(FRASES_FIJAS)}
@@ -111,6 +120,8 @@ async def salud():
         "frases_fijas": app.state.fijas_listas,
         "registro_turnos": settings.registro_turnos,
         "conocimiento": _estado_conocimiento(),
+        "llamadas": {"en_curso": app.state.cupo.en_curso,
+                     "maximo": app.state.cupo.maximo},
     })
 
 
@@ -127,6 +138,18 @@ def _estado_conocimiento() -> dict:
     }
 
 
+@app.post("/traducir")
+async def traducir_transcripcion(pedido: dict):
+    """La transcripción en inglés, a demanda. Ver server/traduccion.py."""
+    from server.traduccion import traducir
+    lineas = [str(x) for x in (pedido.get("lineas") or []) if str(x).strip()]
+    try:
+        return JSONResponse({"traducciones": await traducir(app.state.llm, lineas)})
+    except Exception as exc:  # noqa: BLE001 — la pantalla lo dice; la llamada no se entera
+        return JSONResponse({"error": f"{type(exc).__name__}: {str(exc)[:200]}"},
+                            status_code=502)
+
+
 @app.websocket("/ws/llamada")
 async def llamada(ws: WebSocket):
     await SesionLlamada(ws, ws.app.state).atender()
@@ -138,12 +161,21 @@ async def texto(ws: WebSocket):
     await ws.accept()
     conversacion = Conversacion(ws.app.state.llm,
                                 recuperador=ws.app.state.recuperador)
+    # Por texto no hay audio que facturar, pero cada turno son dos peticiones
+    # al gateway, y una pestaña con un script puede hacer cientos.
+    presupuesto = Presupuesto(settings.max_turnos_llamada, settings.max_minutos_llamada * 60)
     try:
         while True:
             m = await ws.receive_json()
             dicho = (m.get("texto") or "").strip()
             if not dicho:
                 continue
+            presupuesto.registrar_turno()
+            if motivo := presupuesto.excedido():
+                await ws.send_json({"type": "speak", "texto": LIMITE})
+                await ws.send_json({"type": "adios", "motivo": motivo})
+                await ws.close()
+                return
             async for tipo, dato in conversacion.turno(dicho):
                 if tipo == "speak":
                     await ws.send_json({"type": "speak", "texto": dato})

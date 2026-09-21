@@ -45,8 +45,9 @@ from pathlib import Path
 from fastapi import WebSocket, WebSocketDisconnect
 
 from server.config import settings
-from server.dialogo.prompts import DESPEDIDA_FINAL, RETOMAR_SILENCIO, SALUDO, SIN_OIDO
+from server.dialogo.prompts import DESPEDIDA_FINAL, LIMITE, RETOMAR_SILENCIO, SALUDO, SIN_OIDO
 from server.dialogo.turno import Conversacion, TurnoVera
+from server.limites import Cupo, Presupuesto
 from server.seguridad.reglas import detect_red_flags, max_severity
 from server.seguridad.vigilancia import Lectura, Vigilancia
 from server.voz.eco import RegistroDeVoz
@@ -103,6 +104,9 @@ class SesionLlamada:
         self.dichas = RegistroDeVoz()
         self.conversacion = Conversacion(estado.llm, apertura=SALUDO,
                                          recuperador=estado.recuperador)
+        self.cupo: Cupo = estado.cupo
+        self.presupuesto = Presupuesto(settings.max_turnos_llamada,
+                                       settings.max_minutos_llamada * 60)
         self.voz = VozCartesia()
         self.con_voz = False
         self.llamada = uuid.uuid4().hex[:8]
@@ -389,6 +393,13 @@ class SesionLlamada:
 
             self._anotar(t, lectura)
             self._dicho, self._orden = t.texto, t.orden
+            # El tope se mira DESPUÉS de que la vigilancia leyó el turno: si el
+            # último turno de la llamada trae una alarma, la alerta sale igual.
+            # Lo que no sale es otra respuesta del modelo.
+            self.presupuesto.registrar_turno()
+            if self.presupuesto.excedido():
+                await self._cerrar_por_limite()
+                return
             self._nuevo_turno(t.texto)
         # El reconocedor se cayó. Vera todavía puede hablar —su voz es otro
         # servicio—, así que lo dice en vez de colgar en silencio, y la llamada
@@ -452,6 +463,12 @@ class SesionLlamada:
             if self.sonando or (self._generando and not self._generando.done()):
                 self._reloj()          # Vera está hablando: no hay silencio que contar
                 continue
+            # El tope de tiempo se mira aquí, con Vera callada: cortarla a mitad
+            # de frase para decir que se acabó el tiempo sería peor que dejarla
+            # terminar unos segundos pasado el tope.
+            if self.presupuesto.excedido():
+                await self._cerrar_por_limite()
+                return
             frase = self._que_decir_al_silencio(
                 asyncio.get_running_loop().time() - self._ultimo)
             if frase is None:
@@ -464,9 +481,28 @@ class SesionLlamada:
                 await self._enviar({"type": "adios", "detalle": "la llamada se cerró sola"})
                 return
 
+    async def _cerrar_por_limite(self) -> None:
+        self._cortar()
+        self._n += 1
+        await self._decir_fija(LIMITE, self._n)
+        await self._enviar({"type": "adios", "detalle": "límite de la llamada",
+                            "motivo": self.presupuesto.excedido()})
+
     # ------------------------------------------------------------- la llamada
     async def atender(self) -> None:
         await self.ws.accept()
+        # Antes de abrir nada que se facture. Quien llega sin cupo no se queda
+        # esperando en silencio: se le dice que está ocupado y decide él.
+        if not self.cupo.tomar():
+            await self._enviar({"type": "ocupado", "maximo": self.cupo.maximo})
+            await self.ws.close()
+            return
+        try:
+            await self._atender()
+        finally:
+            self.cupo.soltar()
+
+    async def _atender(self) -> None:
         try:
             await self.stt.abrir()
         except ErrorSTT as e:

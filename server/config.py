@@ -55,6 +55,15 @@ class Settings(BaseSettings):
     silencio_retomar_s: float = 20.0
     silencio_cerrar_s: float = 30.0
 
+    # Topes de uso, para la URL pública (ver server/limites.py). Una llamada
+    # de seguimiento real dura cinco minutos; diez dejan probar todas las rutas
+    # con calma y cortan la pestaña olvidada. Dos llamadas a la vez alcanzan para
+    # que dos jueces prueben en paralelo, y el límite del gateway —treinta
+    # peticiones por minuto, dos por turno— no da para muchas más sin degradar.
+    max_llamadas_simultaneas: int = 2
+    max_turnos_llamada: int = 30
+    max_minutos_llamada: float = 10.0
+
     # --- Modelo de lenguaje: Claude por el LLM Gateway de AssemblyAI ---
     # La misma clave de AssemblyAI; el gateway exige pago por uso habilitado.
     llm_url: str = "https://llm-gateway.assemblyai.com/v1/chat/completions"
@@ -88,6 +97,13 @@ class Settings(BaseSettings):
     # el proyecto original contra su alternativa (AUC 1,00 frente a 0,94) y el
     # que la decisión 7 de arquitectura da por cabido en el despliegue.
     embedding_modelo: str = "intfloat/multilingual-e5-large"
+    # Dónde vive el modelo en disco. Vacío es el defecto de fastembed —la carpeta
+    # temporal del sistema—, que en esta máquina basta. En el despliegue se fija a
+    # una ruta dentro de la imagen, porque el modelo se baja al construirla: si
+    # quedara en /tmp de la construcción, el contenedor que corre como otro
+    # usuario no lo encontraría y lo volvería a bajar —dos gigas— en el primer
+    # arranque, con el juez esperando.
+    modelos_dir: str = ""
 
     # Cuántos fragmentos se recuperan y cuántos ve el modelo. Son dos números
     # porque recuperar de más es barato —ordena mejor— y mostrar de más no:

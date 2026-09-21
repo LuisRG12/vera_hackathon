@@ -132,6 +132,15 @@ DESPEDIDA_FINAL = (
     "comuníquese con ellos directamente."
 )
 
+# Cuando la conversación llega a su tope de turnos o de tiempo. No dice «se acabó
+# el presupuesto», que es un problema nuestro y no del paciente, y tampoco
+# promete un reporte al equipo que el sistema no manda: cierra con cortesía y
+# le deja al paciente lo único útil, a quién acudir.
+LIMITE = (
+    "Hemos conversado un buen rato y aquí tengo que cerrar la llamada. Si algo "
+    "cambia con su salud, comuníquese con su equipo clínico. Que siga mejorando."
+)
+
 # Cuando el reconocedor se cae a mitad de llamada. Vera todavía puede hablar
 # —su voz es otro servicio—, así que lo dice en vez de colgar en silencio, y no
 # promete escuchar lo que ya no puede oír.

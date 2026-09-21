@@ -27,7 +27,8 @@ class Embedder:
 
     def __init__(self, modelo: str | None = None):
         self.nombre = modelo or settings.embedding_modelo
-        self._modelo = TextEmbedding(model_name=self.nombre)
+        self._modelo = TextEmbedding(model_name=self.nombre,
+                                     cache_dir=settings.modelos_dir or None)
 
     def fragmentos(self, textos: list[str]) -> list[np.ndarray]:
         """Lado «passage»: el texto de los documentos."""
