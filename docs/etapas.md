@@ -107,12 +107,26 @@ clínico. Esto es lo que le faltaba para cumplir la promesa del producto
 - [x] **Prueba a mano:** llamada entera por voz, con alarma, interrupción,
       silencio y parlantes
 
-## Etapa 6 — Que el juez pueda tocarlo
+## Etapa 6 — Que el juez pueda tocarlo · *en curso*
 
-- [ ] Docker para Hugging Face Spaces (UID 1000, modelos en build)
+- [ ] Docker para Hugging Face Spaces (UID 1000, modelos en build): el modelo de
+      embeddings y el índice se hornean en la imagen, así que el Space arranca
+      sin bajar dos gigas. Al Space va una instantánea sin historia
+      (`scripts/desplegar.py`), porque Hugging Face rechaza cualquier binario en
+      la historia de un push y el índice lo es
 - [ ] Desplegado y accesible por URL pública
-- [ ] Camino de demo podado a tres pantallas o menos
-- [ ] Aviso visible: no es dispositivo médico, no reemplaza atención clínica
+- [x] Camino de demo podado a una pantalla: quién es la paciente, cinco frases
+      que recorren las rutas que importan —cada una dice qué ruta toma—, y la
+      conversación con la fuente de cada respuesta enlazada al documento
+- [x] Aviso visible: no es dispositivo médico, no reemplaza atención clínica, y
+      la paciente y su plan de egreso son ficticios
+- [x] Topes de uso para la URL pública: dos llamadas a la vez, treinta turnos y
+      diez minutos por conversación (`evals/limites.py`: 11/11). Sin ellos,
+      cualquiera que abra la URL gasta de tres cuentas de pago por uso
+- [x] Interfaz en inglés para quien evalúa y no habla español. La conversación
+      sigue en español —traducirla apagaría el léxico colombiano, que es el
+      diferenciador—; lo que cambia es la pantalla, y la transcripción se traduce
+      a demanda con una sola petición
 
 ## Etapa 7 — La entrega
 
