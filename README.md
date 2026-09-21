@@ -74,6 +74,56 @@ Two layers, because no public corpus holds a given patient's own paperwork:
 Nothing in this repository redistributes copyrighted third-party documents. See
 [conocimiento/README.md](conocimiento/README.md) for what was excluded and why.
 
+## Key decisions, and what testing changed
+
+Every decision below was measured, not assumed. The full reasoning — including
+the defects each test uncovered — is in the build log,
+[docs/bitacora.md](docs/bitacora.md) (Spanish).
+
+- **The safety engine runs before the model, on every word.** A deterministic
+  engine with a Colombian clinical lexicon reads each partial transcript as the
+  patient speaks. A red-flag alert fires a median of 0.85 s *before* the turn
+  even closes, and it keeps working if the model fails entirely.
+- **Two safety layers; the escalation is the higher of the two.** An LLM risk
+  judge catches what the rules miss ("a pressure *right here* in my chest"). An
+  emergency is never worded by the model: that response is written by code and
+  starts playing within milliseconds.
+- **A citation is derived by code, not declared by the model.** Structured
+  output guarantees the *shape* of a citation, not its truth: with the right
+  passage withheld, the model cited the wrong ones 3 times out of 3. Vera
+  resolves citations against the passages it was actually shown that turn.
+- **A question the documents can't answer never reaches the model.** The
+  evidence threshold was calibrated against this corpus (34 questions, some of
+  them with the fillers and vocatives of real phone speech): 0 unsupported
+  clinical answers. "Can I have a beer?" gets a fixed, code-written abstention.
+- **Retrieval bugs were found by using it, not by reading it.** Rank fusion
+  treated a zero-information keyword ranking as real; keyword search ranked by
+  filler words ("oiga", "me", "puedo"); and a gallbladder patient was answered
+  from the appendicitis guide. Each fix is in the log, with its measurement.
+- **Barge-in that actually stops the audio.** Cancelling generation wasn't
+  enough — the audio already in the browser kept playing. Interrupting Vera now
+  drops it, and an interrupted turn still gets its risk assessment.
+
+## Measured
+
+Deterministic harnesses, no network, run in seconds:
+`uv run python -m evals.<name>` for `turno` (46 checks), `citas` (18),
+`lexico_colombiano` (120), `decision_seguridad` (24), `eco` (27), `limites` (11).
+`evals.conocimiento` calibrates the evidence threshold against the real index,
+and `scripts/ensayo.py` runs a full conversation against the live model.
+
+## Run it
+
+```bash
+uv sync
+cp .env.example .env        # add ASSEMBLYAI_API_KEY and CARTESIA_API_KEY
+uv run python scripts/indice.py
+uv run uvicorn server.main:app --port 7860
+```
+
+Or with Docker, which is how it is deployed: `docker build -t vera .` and
+`docker run -p 7860:7860 --env-file .env vera`.
+
 ## Status
 
-Under construction. See [docs/etapas.md](docs/etapas.md) for the staged build.
+See [docs/etapas.md](docs/etapas.md) for the staged build.

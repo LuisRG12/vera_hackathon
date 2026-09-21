@@ -1,0 +1,24 @@
+# Lo que no entra a la imagen.
+
+# Credenciales: en el Space llegan como secretos, nunca en la imagen.
+.env
+
+# El entorno de esta máquina es de Windows; el de la imagen lo crea uv adentro.
+.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
+
+# Historia, notas y datos locales.
+.git/
+.claude/
+notas/
+registros/
+voces/
+*.db
+*.wav
+
+# El índice se construye al hornear la imagen (ver Dockerfile): copiar el de esta
+# máquina podría meter uno que ya no corresponda al corpus.
+conocimiento/indice.npz
+conocimiento/_mplus_topics.xml
