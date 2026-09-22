@@ -2,8 +2,16 @@
 
     uv run scripts/desplegar.py usuario/space
 
-Antes, una vez y en su propia terminal: `hf auth login`. El token queda guardado
-por la CLI de Hugging Face y este script nunca lo ve.
+Antes, una vez y en su propia terminal:
+
+    .venv/Scripts/python.exe -m huggingface_hub.cli.hf auth login
+
+El token queda guardado por la CLI de Hugging Face y este script nunca lo ve.
+
+La CLI se usa como módulo del entorno del proyecto —`huggingface_hub` ya viene
+como dependencia de fastembed— y no como el `hf` que instala `uv tool`: ese
+lanzador falla en Git Bash con «uv trampoline failed to canonicalize script
+path», y un despliegue no puede depender de en qué terminal se corre.
 
 **Por qué una instantánea y no un `git push` del historial.** El Space es otro
 repositorio git, y Hugging Face rechaza cualquier push que traiga un archivo
@@ -28,7 +36,6 @@ from __future__ import annotations
 
 import argparse
 import io
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -88,18 +95,16 @@ def main() -> int:
                 print(f"     {a}")
             return 0
 
-        hf = shutil.which("hf")
-        if hf is None:
-            print("[X] Falta la CLI de Hugging Face: uv tool install huggingface_hub")
-            return 1
         r = subprocess.run([
-            hf, "upload", args.space, str(destino), ".",
+            sys.executable, "-m", "huggingface_hub.cli.hf",
+            "upload", args.space, str(destino), ".",
             "--repo-type", "space",
             "--delete", "*",
             "--commit-message", f"Despliega {commit}",
         ])
         if r.returncode != 0:
-            print("[X] La subida falló. ¿Corrió `hf auth login` y el Space existe con SDK Docker?")
+            print("[X] La subida falló. ¿Hay sesión (`python -m huggingface_hub.cli.hf auth "
+                  "login`) y el Space existe con SDK Docker?")
             return r.returncode
 
     print(f"\nSubido. El Space vuelve a construir la imagen: "
