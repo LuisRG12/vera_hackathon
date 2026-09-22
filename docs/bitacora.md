@@ -334,3 +334,65 @@ del diálogo, no del umbral.
 **Lo que cuesta.** La recuperación añade unos cincuenta milisegundos al turno,
 que no se oyen. La primera frase sigue llegando entre 1,2 y 1,9 segundos, y la
 emergencia, que no consulta el índice, en uno.
+
+---
+
+## 21 de septiembre — que el juez pueda tocarlo
+
+**Una URL pública cambia quién paga.** Mientras Vera corría en una sola máquina,
+quien la usaba era quien pagaba. Publicada, cualquiera que la abra gasta de tres
+cuentas de pago por uso, y una pestaña olvidada con el micrófono abierto es una
+llamada que no termina. El cierre por silencio cubría la llamada abandonada, no
+la que sigue hablando ni diez personas a la vez. Ahora hay dos llamadas
+simultáneas como máximo, y cada conversación se cierra a los treinta turnos o
+los diez minutos, con una frase escrita por el código que no promete nada que el
+sistema no haga. El reloj arranca con el primer turno del paciente y no al abrir
+la conexión: es el error que el proyecto original ya pagó una vez.
+
+**La página es para quien evalúa.** Una sola pantalla: quién es la paciente, qué
+puede citar Vera, cinco frases que recorren las rutas que importan —cada una
+dice qué ruta toma— y la conversación, con la fuente de cada respuesta enlazada
+al documento tal como se indexó. En inglés cambia toda la pantalla, pero no la
+conversación: traducirla habría apagado justo el léxico colombiano, que es lo
+que distingue a Vera. Lo que se traduce, a demanda y con una sola petición, es
+la transcripción.
+
+Al rehacerla salieron dos defectos. La respuesta de abstención, que llegó con la
+etapa del conocimiento, se quedó fuera de las frases que se sintetizan al
+arrancar: tardaba lo que tarda la voz y no sonaba si la voz se caía. Y al cerrar
+la llamada, la página cortaba la despedida de Vera a la mitad.
+
+**El mismo código, otro sistema de archivos.** La primera construcción del Space
+falló cargando el modelo de embeddings: onnxruntime exige que los pesos estén en
+la misma carpeta que el modelo, y la caché de Hugging Face en Linux guarda cada
+archivo como un enlace simbólico a un blob con nombre de hash. Al resolver los
+enlaces, los dos archivos quedaban en carpetas distintas. En Windows había
+funcionado todas las semanas porque ahí la caché copia en vez de enlazar. Ahora
+la imagen baja el modelo como archivos reales a una carpeta propia, fijado a la
+revisión exacta con la que se calibró el umbral, y se comprobó que los vectores
+salen idénticos a los de antes —diferencia cero—: la calibración sigue valiendo.
+
+**Lo que no se sube.** Hugging Face rechaza cualquier push que traiga un archivo
+binario en cualquier commit de su historia, y el índice lo es. Así que el
+repositorio guarda la historia y al Space va una instantánea de lo commiteado,
+sin el índice, que la imagen construye al hornearse. De paso, eso garantiza por
+construcción que el índice corresponde al corpus que va en la imagen.
+
+Con la CLI de Hugging Face hubo que dar un rodeo que vale la pena anotar: en
+Windows, la CLI expande ella misma los comodines, así que el `*` de «borrar del
+Space lo que sobre» se convirtió en la lista de archivos de la carpeta local,
+notas de trabajo incluidas. Falló al leer los argumentos y no subió nada, pero
+un despliegue no puede quedar a un comodín de distancia de publicar lo que no
+debe. La subida usa ahora la API directamente.
+
+**Lo que se probó y lo que no.** La imagen se probó en un contenedor local: corre
+como el usuario sin privilegios que exige el Space, escribe su caché de audio,
+recibe las claves por el entorno y responde por WebSocket. El modelo no cupo en
+esa prueba —el motor de Docker de esta máquina tiene dos gigas en total y el
+modelo solo ya pesa eso—; se probó en el Space, que tiene dieciséis.
+
+**Lo que cuesta allá.** En el Space la recuperación tarda entre 190 y 390
+milisegundos, contra unos cincuenta aquí: el modelo de embeddings corre en dos
+núcleos. La primera frase queda entre 1,3 y 2,4 segundos. Se puede recortar
+recuperando sobre el parcial del reconocedor mientras el paciente todavía
+termina de hablar; queda anotado, sin hacer.

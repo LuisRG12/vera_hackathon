@@ -8,6 +8,12 @@ symptom appears.
 Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai/ai-hackathons/assemblyai-voice-agent-hackathon)
 (September 2026).
 
+**Try it: [clrestrepo12-vera.hf.space](https://clrestrepo12-vera.hf.space)** — call
+Vera by voice, or type. The page has an English switch and five suggested
+phrases, each labelled with the path it takes. The conversation itself is in
+Spanish on purpose: understanding how a patient in Colombia actually speaks is
+the point.
+
 > **This is not a medical device and does not replace clinical care.** Vera is a
 > follow-up assistant. It never diagnoses, never prescribes, and escalates to a
 > human clinician on any red flag. Every clinical statement it makes is a

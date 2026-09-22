@@ -107,14 +107,17 @@ clínico. Esto es lo que le faltaba para cumplir la promesa del producto
 - [x] **Prueba a mano:** llamada entera por voz, con alarma, interrupción,
       silencio y parlantes
 
-## Etapa 6 — Que el juez pueda tocarlo · *en curso*
+## Etapa 6 — Que el juez pueda tocarlo · *falta la prueba por voz*
 
-- [ ] Docker para Hugging Face Spaces (UID 1000, modelos en build): el modelo de
+- [x] Docker para Hugging Face Spaces (UID 1000, modelos en build): el modelo de
       embeddings y el índice se hornean en la imagen, así que el Space arranca
       sin bajar dos gigas. Al Space va una instantánea sin historia
       (`scripts/desplegar.py`), porque Hugging Face rechaza cualquier binario en
       la historia de un push y el índice lo es
-- [ ] Desplegado y accesible por URL pública
+- [x] Desplegado y accesible por URL pública:
+      **https://clrestrepo12-vera.hf.space**. Probado por texto desde afuera:
+      cita el plan del paciente, se abstiene sin evidencia, sirve los documentos
+- [ ] **Prueba a mano:** una llamada por voz contra la URL pública
 - [x] Camino de demo podado a una pantalla: quién es la paciente, cinco frases
       que recorren las rutas que importan —cada una dice qué ruta toma—, y la
       conversación con la fuente de cada respuesta enlazada al documento
