@@ -462,7 +462,7 @@ const T = {
     terminada: 'Llamada terminada.', error: 'Error: ', aviso_srv: 'Aviso: ',
     turno: 'turno', riesgo: 'riesgo', cierre: 'cierre del turno',
     decidio: 'decidió', escrito_por: 'lo escribió', el_codigo: 'el código', el_modelo: 'el modelo',
-    primera_frase: 'primera frase', juez: 'juez',
+    primera_frase: 'primera frase', recuperacion: 'búsqueda en documentos', juez: 'juez',
     demo: 'plan ficticio', sin_evidencia: 'No está en sus documentos: la respuesta la escribió el código, sin que el modelo viera la pregunta.',
     sin_cita: 'Sin fuente: no afirmó nada clínico.',
     interrumpida: 'interrumpida', eco_meta: 'el micrófono oyó a Vera: se descartó como eco, no es un turno de la paciente',
@@ -519,7 +519,7 @@ const T = {
     terminada: 'Call ended.', error: 'Error: ', aviso_srv: 'Notice: ',
     turno: 'turn', riesgo: 'risk', cierre: 'end of turn',
     decidio: 'decided by', escrito_por: 'written by', el_codigo: 'code', el_modelo: 'the model',
-    primera_frase: 'first sentence', juez: 'judge',
+    primera_frase: 'first sentence', recuperacion: 'document search', juez: 'judge',
     demo: 'fictional plan', sin_evidencia: 'Not in her documents: this answer was written by code, and the model never saw the question.',
     sin_cita: 'No source: it made no clinical claim.',
     interrumpida: 'interrupted', eco_meta: 'the microphone picked up Vera: discarded as echo, not a patient turn',
@@ -814,6 +814,10 @@ function pieVera(m, conJuez) {
     ` · ${t('decidio')} ${T[lang].fuentes_dec[m.fuente] || m.fuente}` +
     ` · ${t('escrito_por')} ${m.redactado_por === 'codigo' ? t('el_codigo') : t('el_modelo')}${marca}` +
     ` · ${t('primera_frase')} ${l.primera_frase_ms ?? '—'} ms` +
+    // Cuánto de esa espera fue buscar en los documentos. Está a la vista porque
+    // en una llamada real la primera frase tardó tres segundos y no había cómo
+    // saber dónde se fue el tiempo.
+    (l.recuperacion_ms != null ? ` · ${t('recuperacion')} ${l.recuperacion_ms} ms` : '') +
     (conJuez ? ` · ${t('juez')} ${l.juez_ms ?? '—'} ms` : '')));
   return p;
 }

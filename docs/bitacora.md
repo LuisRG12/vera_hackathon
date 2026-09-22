@@ -396,3 +396,30 @@ milisegundos, contra unos cincuenta aquí: el modelo de embeddings corre en dos
 núcleos. La primera frase queda entre 1,3 y 2,4 segundos. Se puede recortar
 recuperando sobre el parcial del reconocedor mientras el paciente todavía
 termina de hablar; queda anotado, sin hacer.
+
+**La prueba por voz, y lo que cambió.** La llamada contra la URL pública
+funcionó, y mostró tres cosas. La primera es de diseño: Vera solo reaccionaba.
+Contestaba y esperaba, y la llamada terminaba por agotamiento, con un «¿sigue
+por ahí?» a los veinte segundos de silencio que sonaba a máquina esperando. Una
+enfermera de seguimiento hace lo contrario: lleva una lista, pregunta lo que
+falta y, cuando ya cubrió todo, cierra ella. Ahora el código lleva esa agenda
+—dolor, herida, fiebre, alimentación— y le pide al modelo un tema por turno;
+cuando no queda nada, la pregunta de cierre. Un «no, nada más, gracias» después
+de esa pregunta se despide con una frase fija y cuelga. La regla para colgar es
+estricta a propósito: todas las palabras tienen que ser de despedida, así que
+«no, pero me duele la herida» no cuelga, y una despedida con un signo de alarma
+adentro tampoco. Colgarle a quien todavía tenía algo que decir es el error caro.
+
+La segunda la puse yo: una de las frases guía, «¿el acetaminofén me sirve si me
+da fiebre?», disparaba un aviso al equipo por «fiebre» aunque la fiebre era
+hipotética. La página estaba enseñando una falsa alarma. Se cambió la frase; que
+el léxico distinga lo hipotético de lo reportado queda pendiente, porque es la
+capa de seguridad y no se toca sin su arnés.
+
+La tercera sigue abierta. La primera respuesta de esa llamada —la abstención,
+que solo espera a la recuperación— tardó tres segundos en empezar a sonar,
+contra un cuarto de segundo en las pruebas por texto. La hipótesis obvia era la
+primera inferencia leyendo los pesos del disco en frío; medida, esa primera
+consulta cuesta 87 milisegundos en el Space. No era eso. En vez de inventar una
+causa, la página muestra ahora cuánto tarda la búsqueda en documentos en cada
+turno, para que la próxima vez se vea dónde se fue el tiempo.

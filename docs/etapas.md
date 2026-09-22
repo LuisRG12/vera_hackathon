@@ -107,7 +107,7 @@ clínico. Esto es lo que le faltaba para cumplir la promesa del producto
 - [x] **Prueba a mano:** llamada entera por voz, con alarma, interrupción,
       silencio y parlantes
 
-## Etapa 6 — Que el juez pueda tocarlo · *falta la prueba por voz*
+## Etapa 6 — Que el juez pueda tocarlo ✅
 
 - [x] Docker para Hugging Face Spaces (UID 1000, modelos en build): el modelo de
       embeddings y el índice se hornean en la imagen, así que el Space arranca
@@ -117,7 +117,16 @@ clínico. Esto es lo que le faltaba para cumplir la promesa del producto
 - [x] Desplegado y accesible por URL pública:
       **https://clrestrepo12-vera.hf.space**. Probado por texto desde afuera:
       cita el plan del paciente, se abstiene sin evidencia, sirve los documentos
-- [ ] **Prueba a mano:** una llamada por voz contra la URL pública
+- [x] **Prueba a mano:** una llamada por voz contra la URL pública. Funcionó, y
+      mostró tres cosas que se corrigieron: Vera solo reaccionaba y la llamada
+      terminaba por silencio; una frase guía disparaba una falsa alarma; y la
+      primera respuesta tardó tres segundos
+- [x] Agenda de seguimiento y cierre: Vera pregunta por el dolor, la herida, la
+      fiebre y la alimentación sin que se lo pidan, y cuando ya cubrió todo
+      pregunta si hay algo más; un «no, nada más» se despide y cuelga, nunca
+      encima de una alarma (`evals/turno.py`: 58/58)
+- [x] Página rediseñada para quien evalúa: el orbe sigue la voz real, las cifras
+      son mediciones del proyecto y cada frase guía dice qué ruta toma
 - [x] Camino de demo podado a una pantalla: quién es la paciente, cinco frases
       que recorren las rutas que importan —cada una dice qué ruta toma—, y la
       conversación con la fuente de cada respuesta enlazada al documento

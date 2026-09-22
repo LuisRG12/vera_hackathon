@@ -88,14 +88,16 @@ def _abrir_conocimiento():
     try:
         indice = Indice.cargar()
         recuperador = Recuperador(indice, Embedder())
-        # Una consulta de calentamiento. En la primera llamada por voz contra el
-        # Space, la abstención —que solo espera a la recuperación— tardó tres
-        # segundos en empezar a sonar, contra un cuarto de segundo en las
-        # pruebas por texto. En esta máquina la primera consulta cuesta 64 ms y
-        # las siguientes 45, así que aquí no hay calentamiento que lo explique;
-        # allá sí puede haberlo, porque los dos gigas de pesos se leen del disco
-        # en frío la primera vez. Por eso se mide: el tiempo sale en el registro
-        # de arranque. Si el primer paciente iba a pagarlo, mejor el arranque.
+        # Una consulta de prueba al arrancar: si el modelo no corre, se sabe aquí
+        # y no con el primer paciente, y su tiempo queda en el registro.
+        #
+        # Nació como calentamiento, por una hipótesis que la medición descartó.
+        # En la primera llamada por voz contra el Space, la abstención —que solo
+        # espera a la recuperación— tardó tres segundos en empezar a sonar. Se
+        # supuso que era la primera inferencia leyendo los pesos del disco en
+        # frío; medida, cuesta 64 ms en esta máquina y 87 en el Space. Los tres
+        # segundos siguen sin explicación, y por eso la página muestra ahora
+        # cuánto tarda la recuperación en cada turno.
         t0 = time.perf_counter()
         recuperador.consultar("hola")
         print(f"[conocimiento] {len(indice)} fragmentos de "
