@@ -45,14 +45,16 @@ class Settings(BaseSettings):
     # interrumpa a media idea, que en esta conversación vale más.
     stt_modo: str = "max_accuracy"
 
-    # Cuánto aguanta Vera el silencio del paciente. 20 s para retomar: es mucho
-    # más que una pausa para pensar y bastante menos de lo que aguanta alguien al
-    # teléfono antes de creer que se cortó. Otros 30 s para cerrar, porque quien
-    # no contestó a la primera casi nunca contesta a la segunda.
+    # Cuánto aguanta Vera el silencio del paciente. Se empezó con 20 s para
+    # retomar, y probándolo por voz se sentía como una línea muerta: al teléfono,
+    # veinte segundos sin nada es lo que tarda alguien en creer que se cortó.
+    # Doce siguen siendo el doble de una pausa larga para pensar. Otros 30 s para
+    # cerrar, porque quien no contestó a la primera casi nunca contesta a la
+    # segunda.
     #
     # Cerrar la llamada también es lo que evita pagar una conexión abierta que
     # nadie usa: AssemblyAI factura por tiempo, no por audio enviado.
-    silencio_retomar_s: float = 20.0
+    silencio_retomar_s: float = 12.0
     silencio_cerrar_s: float = 30.0
 
     # Topes de uso, para la URL pública (ver server/limites.py). Una llamada

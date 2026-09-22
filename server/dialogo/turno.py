@@ -36,8 +36,10 @@ from pydantic import BaseModel, Field
 from server.config import settings
 from server.conocimiento.citas import derivar, limpiar
 from server.conocimiento.recuperacion import Cita, formatear
+from server.dialogo.agenda import PREGUNTA, PREGUNTA_CIERRE, Agenda, es_cierre
 from server.dialogo.pregunta import es_pregunta
 from server.dialogo.prompts import (
+    CIERRE,
     CON_EVIDENCIA,
     DEGRADADO,
     DEGRADADO_CON_ALARMA,
@@ -54,7 +56,9 @@ from server.seguridad.juez import assess_risk, combinar
 from server.seguridad.reglas import detect_red_flags, max_severity
 from server.seguridad.respuestas import ACOMPANAR, EMERGENCIA
 
-# El objetivo del turno lo fija el código, no lo elige el modelo.
+# El objetivo del turno lo fija el código, no lo elige el modelo. Este es el de
+# cuando la agenda ya se cubrió y el paciente sigue hablando: se le acompaña sin
+# preguntarle otra vez lo que ya contó.
 OBJETIVO_NORMAL = "reconocer lo que dijo y dar seguimiento a cómo se siente"
 # «Sin ofrecerle ayuda» porque con este objetivo el modelo tiende a ofrecerla
 # —«¿necesita que le ayude a contactarlos?»—, y Vera no tiene cómo cumplir.
@@ -111,7 +115,7 @@ class TurnoVera:
     # Quién escribió lo que se dijo: `modelo` o `codigo`. Es la primera pregunta
     # de cualquier auditoría clínica, y sin el campo habría que deducirla.
     redactado_por: str
-    # ok | emergencia | degradado_sin_modelo | respuesta_vacia | sin_evidencia
+    # ok | emergencia | degradado_sin_modelo | respuesta_vacia | sin_evidencia | cierre
     marca: str = "ok"
     usage: dict = field(default_factory=dict)
     latencia_ms: dict = field(default_factory=dict)
@@ -155,6 +159,11 @@ class Conversacion:
         # el doble de tramadol» le dio `critical`, y a «¿me puedo bañar?» tras una
         # fiebre, `high`, ambos por lo dicho antes. Ver evals/juez.py.
         self._previo: str | None = None
+        # Qué falta preguntar y si ya se preguntó «¿hay algo más?». Ver agenda.py.
+        self.agenda = Agenda()
+        # Si el paciente cerró la llamada. Quien sostiene la conexión —la sesión
+        # de voz o el WebSocket de texto— la termina cuando esto se enciende.
+        self.terminada = False
 
     async def turno(self, texto: str):
         """Genera ("speak", frase) mientras se habla y termina con ("turn", TurnoVera)."""
@@ -162,6 +171,7 @@ class Conversacion:
         lat: dict = {}
         flags = detect_red_flags(texto)
         severidad = max_severity(flags)
+        self.agenda.anotar(texto)
 
         async def juez_medido() -> tuple[RiskAssessment, dict]:
             r = await assess_risk(self.llm, texto, flags, self._previo)
@@ -202,6 +212,20 @@ class Conversacion:
         self._en_curso.citas = citas
         self._en_curso.hubo_evidencia = hay_evidencia
 
+        # El paciente cierra la llamada. Solo sin ninguna señal de las reglas: una
+        # despedida con un signo de alarma adentro no es una despedida, y colgarle
+        # a quien todavía tenía algo que decir es el error caro. El juez sigue
+        # corriendo igual: su valoración también llega en el último turno.
+        if not flags and es_cierre(texto, self.agenda.cierre_preguntado):
+            lat["primera_frase_ms"] = _ms(t0)
+            dichas.append(CIERRE)
+            yield "speak", CIERRE
+            self.terminada = True
+            ra, uso = await _esperar(juez)
+            yield "turn", self._cerrar(texto, flags, ra, CIERRE, "codigo", "cierre",
+                                       uso, lat, t0)
+            return
+
         # Una pregunta que el corpus no responde NO llega al modelo. Es la
         # diferencia entre pedirle que se abstenga y no darle la oportunidad de
         # no hacerlo: con fragmentos delante y sin evidencia, está medido que
@@ -224,7 +248,8 @@ class Conversacion:
                                        "sin_evidencia", uso, lat, t0, [], False)
             return
 
-        objetivo = OBJETIVO_ALARMA if severidad == "high" else OBJETIVO_NORMAL
+        objetivo = (OBJETIVO_ALARMA if severidad == "high"
+                    else self._objetivo(respondiendo=hay_evidencia and es_pregunta(texto)))
         user = self._instruccion(texto, objetivo, citas, hay_evidencia)
         if self.apertura and not self.historial:
             user = f"VERA YA DIJO AL CONTESTAR LA LLAMADA: «{self.apertura}»\n\n{user}"
@@ -297,6 +322,22 @@ class Conversacion:
                for k in ("input_tokens", "output_tokens")}
         yield "turn", self._cerrar(texto, flags, ra, utterance, redactado_por, marca,
                                    uso, lat, t0, verificadas, hay_evidencia)
+
+    def _objetivo(self, respondiendo: bool) -> str:
+        """Qué tiene que hacer Vera en este turno, además de contestar.
+
+        Lo que falta de la agenda, uno por turno; cuando ya no falta nada, la
+        pregunta de cierre, una sola vez. Con una alarma no se llega aquí: ese
+        turno es para encaminar al paciente a su equipo, no para seguir la lista.
+        """
+        base = "responder su pregunta con el CONTEXTO" if respondiendo else "reconocer lo que dijo"
+        if (tema := self.agenda.siguiente()) is not None:
+            self.agenda.asignar(tema)
+            return f"{base} y, en la misma respuesta, preguntarle {PREGUNTA[tema]}"
+        if not self.agenda.cierre_preguntado:
+            self.agenda.cierre_preguntado = True
+            return f"{base} y preguntarle {PREGUNTA_CIERRE}"
+        return OBJETIVO_NORMAL if not respondiendo else base
 
     def _instruccion(self, texto: str, objetivo: str, citas, hay_evidencia: bool) -> str:
         """La instrucción del turno la fija el CÓDIGO, no la elige el modelo.

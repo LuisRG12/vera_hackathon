@@ -13,6 +13,7 @@ el cliente habla con nosotros y nosotros con AssemblyAI y con Cartesia.
 """
 from __future__ import annotations
 
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 
 from server.config import settings
 from server.dialogo.prompts import (
+    CIERRE,
     DEGRADADO,
     DEGRADADO_CON_ALARMA,
     DESPEDIDA_FINAL,
@@ -51,7 +53,7 @@ WEB = Path(__file__).resolve().parent.parent / "web"
 # lo que tarda Cartesia y no sonaba si Cartesia se caía.
 FRASES_FIJAS = [SALUDO, EMERGENCIA, ACOMPANAR, DEGRADADO, DEGRADADO_CON_ALARMA,
                 SIN_RESPUESTA, RETOMAR_SILENCIO, DESPEDIDA_FINAL, SIN_OIDO,
-                SIN_INFORMACION, LIMITE]
+                SIN_INFORMACION, LIMITE, CIERRE]
 
 
 @asynccontextmanager
@@ -86,8 +88,19 @@ def _abrir_conocimiento():
     try:
         indice = Indice.cargar()
         recuperador = Recuperador(indice, Embedder())
+        # Una consulta de calentamiento. En la primera llamada por voz contra el
+        # Space, la abstención —que solo espera a la recuperación— tardó tres
+        # segundos en empezar a sonar, contra un cuarto de segundo en las
+        # pruebas por texto. En esta máquina la primera consulta cuesta 64 ms y
+        # las siguientes 45, así que aquí no hay calentamiento que lo explique;
+        # allá sí puede haberlo, porque los dos gigas de pesos se leen del disco
+        # en frío la primera vez. Por eso se mide: el tiempo sale en el registro
+        # de arranque. Si el primer paciente iba a pagarlo, mejor el arranque.
+        t0 = time.perf_counter()
+        recuperador.consultar("hola")
         print(f"[conocimiento] {len(indice)} fragmentos de "
-              f"{len(indice.documentos)} documentos", flush=True)
+              f"{len(indice.documentos)} documentos · calentado en "
+              f"{(time.perf_counter() - t0) * 1000:.0f} ms", flush=True)
         return recuperador
     except Exception as exc:  # noqa: BLE001 — se degrada, no tumba el servidor
         print(f"[conocimiento] sin índice ({type(exc).__name__}: {exc}); "
@@ -206,5 +219,9 @@ async def texto(ws: WebSocket):
                     await ws.send_json({"type": "speak", "texto": dato})
                 else:
                     await ws.send_json({"type": "turno", **turno_json(dato)})
+            if conversacion.terminada:
+                await ws.send_json({"type": "adios", "motivo": "cierre"})
+                await ws.close()
+                return
     except WebSocketDisconnect:
         return

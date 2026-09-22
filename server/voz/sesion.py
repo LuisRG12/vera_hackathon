@@ -105,6 +105,9 @@ class SesionLlamada:
         self.conversacion = Conversacion(estado.llm, apertura=SALUDO,
                                          recuperador=estado.recuperador)
         self.cupo: Cupo = estado.cupo
+        # Se enciende cuando el paciente cierra la llamada. Es una de las tareas
+        # que `atender` espera: la primera que termina, termina la llamada.
+        self._fin = asyncio.Event()
         self.presupuesto = Presupuesto(settings.max_turnos_llamada,
                                        settings.max_minutos_llamada * 60)
         self.voz = VozCartesia()
@@ -231,6 +234,12 @@ class SesionLlamada:
                 except ErrorVoz as e:
                     await sin_voz(e)
             await cerrar_voz()
+            if self.conversacion.terminada:
+                # El audio de la despedida ya salió entero; el navegador lo deja
+                # sonar aunque la conexión se cierre (ver `despedida` en la página).
+                await self._enviar({"type": "adios", "detalle": "la paciente cerró la llamada",
+                                    "motivo": "cierre"})
+                self._fin.set()
         except asyncio.CancelledError:
             # El «callar» lo manda `_cortar`, que es quien sabe que el paciente
             # tomó la palabra; aquí solo se deja de generar audio que ya nadie
@@ -475,6 +484,10 @@ class SesionLlamada:
                 continue
             self._retomes += 1
             self._n += 1
+            if frase == RETOMAR_SILENCIO:
+                # Pregunta si hay algo más: después de esto, un «no, nada más»
+                # cierra la llamada en vez de esperar otro medio minuto.
+                self.conversacion.agenda.cierre_preguntado = True
             await self._decir_fija(frase, self._n)
             self._reloj()
             if self._retomes >= 2:
@@ -531,7 +544,8 @@ class SesionLlamada:
         self._movimiento()
 
         tareas = [asyncio.create_task(c)
-                  for c in (self._subida(), self._bajada(), self._vigilar_silencio())]
+                  for c in (self._subida(), self._bajada(), self._vigilar_silencio(),
+                            self._fin.wait())]
         try:
             # La primera que termine manda: si el navegador cuelga no tiene
             # sentido seguir esperando turnos, y si AssemblyAI cierra no hay a

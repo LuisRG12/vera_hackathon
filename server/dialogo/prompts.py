@@ -126,7 +126,22 @@ DEGRADADO = (
 # primero retoma —quizá solo estaba pensando— y el segundo cierra, porque
 # insistir una tercera vez es el «disco rayado» que el proyecto original ya
 # corrigió dos veces. Después del cierre Vera no vuelve a hablar sola.
-RETOMAR_SILENCIO = "¿Sigue por ahí? Si hay algo más que quiera contarme, lo escucho."
+#
+# El primero era «¿Sigue por ahí?», y probándolo por voz sonaba a máquina
+# esperando. Ahora comprueba la línea y a la vez hace la pregunta de cierre, así
+# que un «no, nada más» después de él termina la llamada con una despedida en vez
+# de con otro medio minuto de silencio.
+RETOMAR_SILENCIO = (
+    "¿Me escucha? Si hay algo más que le preocupe o que quiera contarme, aquí estoy."
+)
+
+# Cuando el paciente cierra la llamada —«no, nada más, gracias» después de que
+# Vera preguntó si había algo más—. Texto fijo: es lo último que se oye, y no
+# tiene sentido que dependa de un modelo ni que tarde lo que tarda uno.
+CIERRE = (
+    "Con gusto. Que siga mejorando, y si algo cambia, comuníquese con su equipo "
+    "clínico. Hasta luego."
+)
 DESPEDIDA_FINAL = (
     "Quedo atenta a lo que reporte su equipo clínico. Si algo cambia, "
     "comuníquese con ellos directamente."

@@ -16,7 +16,9 @@ import sys
 
 from server.conocimiento.indice import Fragmento
 from server.conocimiento.recuperacion import Cita, Recuperado
+from server.dialogo.agenda import PREGUNTA, PREGUNTA_CIERRE
 from server.dialogo.prompts import (
+    CIERRE,
     DEGRADADO,
     DEGRADADO_CON_ALARMA,
     SIN_CONTEXTO,
@@ -291,6 +293,64 @@ async def main() -> int:
           str([c.fragmento.documento for c in t.citas]))
     check("y no se oye en voz alta",
           frases == ["Puede ducharse desde el tercer día."], str(frases))
+
+    print("\n== La agenda: Vera pregunta lo que falta, y cuando no falta nada, cierra ==")
+    m = ModeloDeMentira()
+    conv = Conversacion(m)
+    await turno(conv, "bien, un poco adolorida pero bien")
+    check("lo que el paciente ya contó no se le vuelve a preguntar",
+          "cómo va el dolor" not in m.ultimo_prompt, m.ultimo_prompt[:160])
+    check("se le pide preguntar por el siguiente tema de la lista",
+          PREGUNTA["herida"] in m.ultimo_prompt, m.ultimo_prompt[:160])
+    await turno(conv, "la herida bien, sin fiebre, y comiendo normal")
+    check("con todo cubierto, la pregunta es si hay algo más",
+          PREGUNTA_CIERRE in m.ultimo_prompt and conv.agenda.cierre_preguntado,
+          m.ultimo_prompt[:160])
+
+    m = ModeloDeMentira()
+    conv = Conversacion(m)
+    await turno(conv, "tengo fiebre de 39 grados")
+    check("un turno de alarma no gasta la agenda",
+          OBJETIVO_ALARMA in m.ultimo_prompt and "fiebre" not in conv.agenda.pendientes
+          and "dolor" in conv.agenda.pendientes, str(conv.agenda.pendientes))
+
+    print("\n== El cierre: se despide y cuelga, pero nunca encima de una alarma ==")
+    m = ModeloDeMentira()
+    conv = Conversacion(m)
+    conv.agenda.cierre_preguntado = True
+    frases, t = await turno(conv, "no, nada más, muchas gracias")
+    check("después de «¿algo más?», un «no, nada más» se despide",
+          frases == [CIERRE], str(frases))
+    check("lo escribe el código, sin invocar al modelo",
+          m.respuestas_pedidas == 0 and t.redactado_por == "codigo" and t.marca == "cierre")
+    check("y la conversación queda terminada", conv.terminada)
+
+    conv = Conversacion(ModeloDeMentira())
+    conv.agenda.cierre_preguntado = True
+    frases, t = await turno(conv, "no, pero me duele el pecho y no me entra el aire")
+    check("una despedida con una emergencia adentro NO cuelga",
+          frases == [EMERGENCIA] and not conv.terminada, str(frases))
+
+    m = ModeloDeMentira()
+    conv = Conversacion(m)
+    conv.agenda.cierre_preguntado = True
+    await turno(conv, "no, bueno, solo que me pica un poco la herida")
+    check("un «no» que sigue contando algo no es un cierre",
+          not conv.terminada and m.respuestas_pedidas == 1)
+
+    conv = Conversacion(ModeloDeMentira())
+    await turno(conv, "bien, gracias")
+    check("«bien, gracias» a mitad de llamada no es un adiós", not conv.terminada)
+
+    conv = Conversacion(ModeloDeMentira())
+    frases, _ = await turno(conv, "bueno, listo, chao")
+    check("una despedida con todas las letras cierra aunque no se haya preguntado",
+          frases == [CIERRE] and conv.terminada, str(frases))
+
+    conv = Conversacion(ModeloDeMentira())
+    conv.agenda.cierre_preguntado = True
+    await turno(conv, "no, ¿y usted?")
+    check("una pregunta no es un cierre", not conv.terminada)
 
     print("\n== Sin conocimiento, la llamada sigue ==")
     m = ModeloDeMentira()
