@@ -39,3 +39,43 @@ ACOMPANAR = (
     "ya estoy avisando a su equipo clínico para que lo contacten ahora. "
     "¿Hay alguien que pueda acompañarlo mientras tanto?"
 )
+
+# ------------------------------------------------------------------------------
+# Cómo termina una llamada según lo que pasó en ella.
+#
+# La despedida normal —«que siga mejorando, y si algo cambia, comuníquese con su
+# equipo»— se decía también después de una emergencia, y probándolo por voz sonó
+# justo así: tras «esto no puede esperar, acuda a urgencias», Vera se despidió
+# como si nada. Y el silencio que siguió a la emergencia recibió «¿me escucha? Si
+# hay algo más que le preocupe, aquí estoy», que invita a seguir conversando a
+# alguien que debería estar pidiendo ayuda. La despedida tiene que llevar lo más
+# importante que se dijo en la llamada, no una cortesía que lo contradiga.
+
+# Después de un signo de alarma. La conversación puede seguir —una herida con
+# materia es para hoy, no para ya—, pero la despedida lo recuerda.
+CIERRE_ALARMA = (
+    "Con gusto. Por lo que me contó, recuerde comunicarse hoy mismo con su equipo "
+    "clínico. Que se mejore. Hasta luego."
+)
+
+# Después de una emergencia, al despedirse o al primer silencio. Repite la
+# instrucción y cuelga: retener con un asistente virtual a alguien que tiene que
+# estar llamando a urgencias es demorarlo.
+CIERRE_EMERGENCIA = (
+    "Por lo que me contó, no espere más: comuníquese ya con su equipo clínico o "
+    "acuda al servicio de urgencias más cercano. Voy a colgar para que pueda hacerlo."
+)
+
+# Después de ideación, lo contrario: no se cuelga rápido. El primer silencio
+# recibe compañía, y solo el segundo cierra, con la misma pauta de `ACOMPANAR`.
+# **Pendientes de validación clínica**, como `ACOMPANAR`: un protocolo de
+# ideación de verdad es más que dos frases, y lo único que se afirma aquí es que
+# colgar al primer silencio o despedirse con «que siga mejorando» era peor.
+RETOMAR_ACOMPANAR = (
+    "Sigo aquí con usted. ¿Hay alguien que pueda acompañarlo en este momento?"
+)
+CIERRE_ACOMPANAR = (
+    "Gracias por contarme. Su equipo clínico ya está avisado para contactarlo. Si "
+    "siente que puede hacerse daño, llame de inmediato a la línea de emergencias o "
+    "pida a alguien de confianza que lo acompañe."
+)

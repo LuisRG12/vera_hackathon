@@ -21,6 +21,8 @@ import server.voz.sesion as sesion_mod
 from evals.turno import ModeloDeMentira
 from evals.voz import CartesiaDeMentira
 from server.dialogo.prompts import DESPEDIDA_FINAL, RETOMAR_SILENCIO, SALUDO
+from server.limites import Cupo
+from server.seguridad.respuestas import CIERRE_ACOMPANAR, CIERRE_EMERGENCIA, RETOMAR_ACOMPANAR
 from server.voz.sesion import SesionLlamada
 from server.voz.stt import Turno
 from server.voz.tts import FrasesFijas, VozCartesia
@@ -105,7 +107,10 @@ async def montar(modelo: ModeloDeMentira) -> tuple:
     fijas = FrasesFijas(sintetizar=sintetizar)
     fijas._audio = {t: b"\x01\x02" * 100 for t in (SALUDO,)}
     ws = WebSocketDeMentira()
-    sesion = SesionLlamada(ws, SimpleNamespace(llm=modelo, fijas=fijas))
+    # El estado que arma el servidor al arrancar. Sin conocimiento —esto prueba la
+    # sesión, no la recuperación— y con cupo de sobra: los topes tienen su arnés.
+    sesion = SesionLlamada(ws, SimpleNamespace(llm=modelo, fijas=fijas, recuperador=None,
+                                               cupo=Cupo(99)))
     asyncio.create_task(sesion.atender())
     await asyncio.sleep(0.05)
     return sesion, ws, oido
@@ -209,6 +214,22 @@ async def main() -> int:
           sesion._que_decir_al_silencio(31) == DESPEDIDA_FINAL)
     sesion._retomes = 2
     check("y no insiste una tercera vez", sesion._que_decir_al_silencio(300) is None)
+
+    # Tras una emergencia, el silencio no invita a seguir conversando: repite la
+    # instrucción y cuelga. Tras ideación, lo contrario: compañía primero.
+    sesion._retomes = 0
+    sesion.conversacion.gravedad = "emergencia"
+    check("tras una emergencia, el primer silencio repite la instrucción y cierra",
+          sesion._que_decir_al_silencio(13) == CIERRE_EMERGENCIA)
+    sesion._retomes = 1
+    check("y no hay segundo retome", sesion._que_decir_al_silencio(300) is None)
+    sesion._retomes = 0
+    sesion.conversacion.gravedad = "ideacion"
+    check("tras ideación, el primer silencio acompaña",
+          sesion._que_decir_al_silencio(13) == RETOMAR_ACOMPANAR)
+    sesion._retomes = 1
+    check("y solo el segundo cierra", sesion._que_decir_al_silencio(31) == CIERRE_ACOMPANAR)
+    sesion.conversacion.gravedad = None
 
     # Vera hablando no puede contar como que el paciente contestó: si contara,
     # cada retome se anularía a sí mismo y la llamada no se cerraría nunca.

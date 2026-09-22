@@ -49,6 +49,7 @@ from server.dialogo.prompts import DESPEDIDA_FINAL, LIMITE, RETOMAR_SILENCIO, SA
 from server.dialogo.turno import Conversacion, TurnoVera
 from server.limites import Cupo, Presupuesto
 from server.seguridad.reglas import detect_red_flags, max_severity
+from server.seguridad.respuestas import CIERRE_ACOMPANAR, CIERRE_EMERGENCIA, RETOMAR_ACOMPANAR
 from server.seguridad.vigilancia import Lectura, Vigilancia
 from server.voz.eco import RegistroDeVoz
 from server.voz.keyterms import CONTEXTO_CLINICO, KEYTERMS
@@ -450,10 +451,20 @@ class SesionLlamada:
         milisegundos, mientras que probarla dentro del temporizador exigiría un
         arnés que duerme medio minuto, y un arnés lento deja de correrse.
         """
+        gravedad = self.conversacion.gravedad
+        # Tras una emergencia, el primer silencio no invita a seguir hablando:
+        # repite la instrucción y cuelga. Tras ideación, lo contrario: compañía
+        # primero, y solo el segundo silencio cierra. Ver respuestas.py.
+        if gravedad == "emergencia":
+            primera, segunda = CIERRE_EMERGENCIA, None
+        elif gravedad == "ideacion":
+            primera, segunda = RETOMAR_ACOMPANAR, CIERRE_ACOMPANAR
+        else:
+            primera, segunda = RETOMAR_SILENCIO, DESPEDIDA_FINAL
         if self._retomes == 0 and callado >= settings.silencio_retomar_s:
-            return RETOMAR_SILENCIO
-        if self._retomes == 1 and callado >= settings.silencio_cerrar_s:
-            return DESPEDIDA_FINAL
+            return primera
+        if self._retomes == 1 and segunda and callado >= settings.silencio_cerrar_s:
+            return segunda
         return None
 
     async def _vigilar_silencio(self) -> None:
@@ -490,7 +501,7 @@ class SesionLlamada:
                 self.conversacion.agenda.cierre_preguntado = True
             await self._decir_fija(frase, self._n)
             self._reloj()
-            if self._retomes >= 2:
+            if frase in (DESPEDIDA_FINAL, CIERRE_EMERGENCIA, CIERRE_ACOMPANAR):
                 await self._enviar({"type": "adios", "detalle": "la llamada se cerró sola"})
                 return
 

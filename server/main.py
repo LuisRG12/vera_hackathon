@@ -37,7 +37,14 @@ from server.dialogo.turno import Conversacion
 from server.limites import Cupo, Presupuesto
 from server.modelo.llm import StructuredLLM
 from server.seguridad.lexico import LEXICON
-from server.seguridad.respuestas import ACOMPANAR, EMERGENCIA
+from server.seguridad.respuestas import (
+    ACOMPANAR,
+    CIERRE_ACOMPANAR,
+    CIERRE_ALARMA,
+    CIERRE_EMERGENCIA,
+    EMERGENCIA,
+    RETOMAR_ACOMPANAR,
+)
 from server.voz.keyterms import KEYTERMS
 from server.voz.sesion import SesionLlamada, turno_json
 from server.voz.tts import FrasesFijas
@@ -53,7 +60,8 @@ WEB = Path(__file__).resolve().parent.parent / "web"
 # lo que tarda Cartesia y no sonaba si Cartesia se caía.
 FRASES_FIJAS = [SALUDO, EMERGENCIA, ACOMPANAR, DEGRADADO, DEGRADADO_CON_ALARMA,
                 SIN_RESPUESTA, RETOMAR_SILENCIO, DESPEDIDA_FINAL, SIN_OIDO,
-                SIN_INFORMACION, LIMITE, CIERRE]
+                SIN_INFORMACION, LIMITE, CIERRE, CIERRE_ALARMA, CIERRE_EMERGENCIA,
+                RETOMAR_ACOMPANAR, CIERRE_ACOMPANAR]
 
 
 @asynccontextmanager

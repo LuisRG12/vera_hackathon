@@ -45,7 +45,20 @@ _PREGUNTA = re.compile(
     r"|\b(?:me|se|le|te|nos)\s+(?:puedo|puede|pueda|podr[ií]a|debo|debe|"
     r"deber[ií]a|toca)\b"
     r"|\b(?:verdad\s+que|de\s+verdad|en\s+serio|es\s+cierto|"
-    r"t[uú]\s+eres|usted\s+es)\b",
+    r"t[uú]\s+eres|usted\s+es)\b"
+    # «Cada cuánto» es pregunta casi siempre, esté donde esté en la frase. Se vio
+    # en una llamada: «el dolor creo que ha estado estable cada cuanto me tomo la
+    # pastilla para el dolor» llegó sin signo y con el interrogativo a la mitad,
+    # así que no contó como pregunta, Vera no buscó en los documentos y no la
+    # contestó hasta que la paciente se quejó en el turno siguiente.
+    r"|\bcada\s+cu[aá]nto\b"
+    # Los verbos de una llamada de seguimiento detrás de un interrogativo, pero
+    # solo **con tilde**. El reconocedor escribe «cuándo» cuando se pregunta y
+    # «cuando» cuando es conjunción: así «¿cuándo me quitan los puntos?» cuenta
+    # como pregunta y «cuando me tomo la pastilla me da sueño» no.
+    r"|\b(?:qué|cómo|cuándo|cuánto|cuántas|cuántos|cuál|dónde)\s+(?:me|te|se|le|nos|lo|la)?\s*"
+    r"(?:tomo|toma|tomar|quito|quitan|quitar|cambio|cambian|cambiar|baño|bañar|"
+    r"vuelvo|vuelve|volver|empiezo|dejo|dejar)\b",
     re.I)
 
 # Fórmulas de cortesía y de canal que llevan signo de interrogación pero no

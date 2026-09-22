@@ -54,7 +54,13 @@ from server.modelo.llm import StructuredLLM
 from server.seguridad.esquemas import RiskAssessment, SafetyDecision
 from server.seguridad.juez import assess_risk, combinar
 from server.seguridad.reglas import detect_red_flags, max_severity
-from server.seguridad.respuestas import ACOMPANAR, EMERGENCIA
+from server.seguridad.respuestas import (
+    ACOMPANAR,
+    CIERRE_ACOMPANAR,
+    CIERRE_ALARMA,
+    CIERRE_EMERGENCIA,
+    EMERGENCIA,
+)
 
 # El objetivo del turno lo fija el código, no lo elige el modelo. Este es el de
 # cuando la agenda ya se cubrió y el paciente sigue hablando: se le acompaña sin
@@ -64,6 +70,21 @@ OBJETIVO_NORMAL = "reconocer lo que dijo y dar seguimiento a cómo se siente"
 # —«¿necesita que le ayude a contactarlos?»—, y Vera no tiene cómo cumplir.
 OBJETIVO_ALARMA = ("pedirle al paciente que contacte hoy mismo a su equipo clínico, "
                    "sin ofrecerle ayuda para hacerlo")
+# Después de una emergencia o de ideación, la agenda se acaba: seguir preguntando
+# cómo va comiendo a alguien que acaba de oír «acuda a urgencias» es decirle que
+# no era tan grave.
+OBJETIVO_TRAS_EMERGENCIA = ("responder en una sola frase y recordarle que lo que contó "
+                            "necesita atención inmediata, sin hacerle preguntas de seguimiento")
+OBJETIVO_ACOMPANAR = ("acompañarlo con calidez y preguntarle si hay alguien que pueda estar "
+                      "con él ahora, sin preguntas clínicas")
+
+# La despedida según lo más grave que pasó en la llamada. Ver respuestas.py.
+DESPEDIDA_SEGUN_GRAVEDAD = {
+    None: CIERRE,
+    "alarma": CIERRE_ALARMA,
+    "emergencia": CIERRE_EMERGENCIA,
+    "ideacion": CIERRE_ACOMPANAR,
+}
 
 # Intercambios recientes que ve el modelo para no perder el hilo. Ocho, no tres:
 # con tres, en una llamada de quince turnos Vera ya no se acuerda de la fiebre
@@ -164,6 +185,11 @@ class Conversacion:
         # Si el paciente cerró la llamada. Quien sostiene la conexión —la sesión
         # de voz o el WebSocket de texto— la termina cuando esto se enciende.
         self.terminada = False
+        # Lo más grave que pasó en la llamada: None, «alarma», «emergencia» o
+        # «ideacion». No baja nunca: una llamada con una emergencia sigue siendo
+        # una llamada con una emergencia aunque el turno siguiente sea tranquilo.
+        # Decide la despedida, lo que se dice al silencio y si la agenda sigue.
+        self.gravedad: str | None = None
 
     async def turno(self, texto: str):
         """Genera ("speak", frase) mientras se habla y termina con ("turn", TurnoVera)."""
@@ -217,12 +243,13 @@ class Conversacion:
         # a quien todavía tenía algo que decir es el error caro. El juez sigue
         # corriendo igual: su valoración también llega en el último turno.
         if not flags and es_cierre(texto, self.agenda.cierre_preguntado):
+            despedida = DESPEDIDA_SEGUN_GRAVEDAD[self.gravedad]
             lat["primera_frase_ms"] = _ms(t0)
-            dichas.append(CIERRE)
-            yield "speak", CIERRE
+            dichas.append(despedida)
+            yield "speak", despedida
             self.terminada = True
             ra, uso = await _esperar(juez)
-            yield "turn", self._cerrar(texto, flags, ra, CIERRE, "codigo", "cierre",
+            yield "turn", self._cerrar(texto, flags, ra, despedida, "codigo", "cierre",
                                        uso, lat, t0)
             return
 
@@ -330,6 +357,10 @@ class Conversacion:
         pregunta de cierre, una sola vez. Con una alarma no se llega aquí: ese
         turno es para encaminar al paciente a su equipo, no para seguir la lista.
         """
+        if self.gravedad == "ideacion":
+            return OBJETIVO_ACOMPANAR
+        if self.gravedad == "emergencia":
+            return OBJETIVO_TRAS_EMERGENCIA
         base = "responder su pregunta con el CONTEXTO" if respondiendo else "reconocer lo que dijo"
         if (tema := self.agenda.siguiente()) is not None:
             self.agenda.asignar(tema)
@@ -394,11 +425,27 @@ class Conversacion:
         self._en_curso = None
         decision = combinar(flags, ra)
         self._previo = None if decision.risk in ("high", "critical") else texto
+        self._anotar_gravedad(flags, decision)
         lat["total_ms"] = _ms(t0)
         return TurnoVera(utterance=utterance, decision=decision,
                          redactado_por=redactado_por, marca=marca,
                          usage=uso, latencia_ms=lat, citas=list(citas),
                          hubo_evidencia=hubo_evidencia)
+
+
+    def _anotar_gravedad(self, flags, decision: SafetyDecision) -> None:
+        """Sube la gravedad de la llamada según la decisión del turno; nunca la baja.
+
+        Se lee de la acción decidida y no del riesgo: el juez solo no puede
+        declarar emergencia —`combinar` lo tope a escalar—, así que la acción es
+        lo que de verdad se le dijo al paciente.
+        """
+        if any(f.name == "ideacion_suicida" for f in flags):
+            self.gravedad = "ideacion"
+        elif decision.action == "emergency" and self.gravedad != "ideacion":
+            self.gravedad = "emergencia"
+        elif decision.action == "escalate" and self.gravedad is None:
+            self.gravedad = "alarma"
 
 
 async def _esperar(tarea) -> tuple[RiskAssessment | None, dict]:

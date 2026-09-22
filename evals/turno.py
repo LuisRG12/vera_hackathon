@@ -17,6 +17,7 @@ import sys
 from server.conocimiento.indice import Fragmento
 from server.conocimiento.recuperacion import Cita, Recuperado
 from server.dialogo.agenda import PREGUNTA, PREGUNTA_CIERRE
+from server.dialogo.pregunta import es_pregunta
 from server.dialogo.prompts import (
     CIERRE,
     DEGRADADO,
@@ -26,10 +27,21 @@ from server.dialogo.prompts import (
     SIN_INFORMACION,
     SIN_RESPUESTA,
 )
-from server.dialogo.turno import INTERCAMBIOS, OBJETIVO_ALARMA, Conversacion
+from server.dialogo.turno import (
+    INTERCAMBIOS,
+    OBJETIVO_ALARMA,
+    OBJETIVO_TRAS_EMERGENCIA,
+    Conversacion,
+)
 from server.modelo.llm import LLMError
 from server.seguridad.esquemas import RiskAssessment
-from server.seguridad.respuestas import ACOMPANAR, EMERGENCIA
+from server.seguridad.respuestas import (
+    ACOMPANAR,
+    CIERRE_ACOMPANAR,
+    CIERRE_ALARMA,
+    CIERRE_EMERGENCIA,
+    EMERGENCIA,
+)
 
 PASS, FAIL = "  [OK]", "  [FALLA]"
 resultados: list[bool] = []
@@ -351,6 +363,53 @@ async def main() -> int:
     conv.agenda.cierre_preguntado = True
     await turno(conv, "no, ¿y usted?")
     check("una pregunta no es un cierre", not conv.terminada)
+
+    print("\n== La despedida lleva lo más grave que pasó en la llamada ==")
+    # Probándolo por voz, tras «esto no puede esperar, acuda a urgencias», Vera se
+    # despidió con «que siga mejorando». La despedida no puede contradecir la
+    # instrucción más importante de la llamada.
+    conv = Conversacion(ModeloDeMentira())
+    await turno(conv, "me duele el pecho y no me entra el aire")
+    frases, _ = await turno(conv, "no, nada más. Chao")
+    check("tras una emergencia, la despedida repite que vaya a urgencias",
+          frases == [CIERRE_EMERGENCIA] and conv.terminada, str(frases))
+
+    conv = Conversacion(ModeloDeMentira())
+    await turno(conv, "tengo fiebre de 39 grados")
+    frases, _ = await turno(conv, "bueno, listo, chao")
+    check("tras una alarma, recuerda llamar hoy a su equipo",
+          frases == [CIERRE_ALARMA], str(frases))
+
+    conv = Conversacion(ModeloDeMentira())
+    await turno(conv, "ya no quiero vivir más")
+    frases, _ = await turno(conv, "no, nada más, chao")
+    check("tras ideación, se despide acompañando", frases == [CIERRE_ACOMPANAR], str(frases))
+
+    m = ModeloDeMentira()
+    conv = Conversacion(m)
+    await turno(conv, "me duele el pecho y no me entra el aire")
+    await turno(conv, "ya, bueno, y cuándo me puedo bañar")
+    check("tras una emergencia se acaba la agenda",
+          OBJETIVO_TRAS_EMERGENCIA in m.ultimo_prompt
+          and not any(p in m.ultimo_prompt for p in PREGUNTA.values()), m.ultimo_prompt[:160])
+    await turno(conv, "tengo fiebre de 38")
+    check("y la gravedad no baja con un turno menos grave", conv.gravedad == "emergencia",
+          str(conv.gravedad))
+
+    print("\n== Preguntas sin signo de interrogación ==")
+    for texto, es in [
+        ("Pues el dolor creo que ha estado estable cada cuanto me tomo la pastilla para el dolor.",
+         True),
+        ("no me dijiste cada cuánto me puedo tomar la pastilla", True),
+        ("y cuándo me quitan los puntos", True),
+        ("no sé cómo me baño con los puntos", True),
+        # A mitad de frase y sin tilde, «cuando» es conjunción. Al comienzo de la
+        # frase cuenta como pregunta por la regla del proyecto original, que no se
+        # tocó: el reconocedor se come los signos de interrogación.
+        ("me da sueño cuando me tomo la pastilla", False),
+        ("me siento bien, gracias", False),
+    ]:
+        check(f"«{texto[:48]}» {'es' if es else 'no es'} pregunta", es_pregunta(texto) == es)
 
     print("\n== Sin conocimiento, la llamada sigue ==")
     m = ModeloDeMentira()
