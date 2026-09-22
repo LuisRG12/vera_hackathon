@@ -97,13 +97,13 @@ class Settings(BaseSettings):
     # el proyecto original contra su alternativa (AUC 1,00 frente a 0,94) y el
     # que la decisión 7 de arquitectura da por cabido en el despliegue.
     embedding_modelo: str = "intfloat/multilingual-e5-large"
-    # Dónde vive el modelo en disco. Vacío es el defecto de fastembed —la carpeta
-    # temporal del sistema—, que en esta máquina basta. En el despliegue se fija a
-    # una ruta dentro de la imagen, porque el modelo se baja al construirla: si
-    # quedara en /tmp de la construcción, el contenedor que corre como otro
-    # usuario no lo encontraría y lo volvería a bajar —dos gigas— en el primer
-    # arranque, con el juez esperando.
-    modelos_dir: str = ""
+    # Una carpeta con el modelo ya bajado, para cargarlo de ahí y no de la caché
+    # de fastembed. Vacío en esta máquina, donde la caché basta. En la imagen de
+    # Docker apunta a donde lo deja `scripts/modelo.py` al construirla: la caché
+    # de Hugging Face en Linux guarda enlaces simbólicos, y onnxruntime se niega
+    # a cargar un modelo cuyos pesos resuelven fuera de su carpeta. Ver ese
+    # script: es lo que tumbó la primera construcción del Space.
+    modelo_local: str = ""
 
     # Cuántos fragmentos se recuperan y cuántos ve el modelo. Son dos números
     # porque recuperar de más es barato —ordena mejor— y mostrar de más no:
@@ -113,7 +113,7 @@ class Settings(BaseSettings):
 
     # El umbral de evidencia: por debajo, Vera no afirma nada clínico. Calibrado
     # contra ESTE corpus con `evals/conocimiento.py`, sobre 21 preguntas dentro
-    # de corpus —la mitad con el ruido del habla real— y 11 fuera:
+    # de corpus —cinco con el ruido del habla real— y 11 fuera:
     #
     #   0.81 -> 21/21 respondidas, 15 con la fuente correcta, 4 fugas clínicas
     #   0.82 -> 19/21 respondidas, 14 con la fuente correcta, 1 fuga clínica

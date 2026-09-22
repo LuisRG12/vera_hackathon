@@ -19,7 +19,7 @@ ENV HOME=/home/user \
     PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
-    MODELOS_DIR=/home/user/modelos
+    MODELO_LOCAL=/home/user/modelos/multilingual-e5-large
 
 # La carpeta la crea el propio usuario: un WORKDIR que no existe lo crea root, y
 # entonces la aplicación no podría escribir en ella.
@@ -34,19 +34,23 @@ RUN uv sync --frozen --no-install-project
 
 COPY --chown=user . .
 
-# Baja el modelo de embeddings a MODELOS_DIR y construye el índice del corpus.
-# El índice se construye aquí y no se copia del repositorio: así corresponde por
-# construcción al corpus que va en la imagen, y el repositorio del Space no
-# necesita guardar ningún binario.
+# Baja el modelo de embeddings a MODELO_LOCAL como archivos reales, no como la
+# caché de Hugging Face con enlaces simbólicos, que onnxruntime rechaza (ver
+# scripts/modelo.py: es lo que tumbó la primera construcción del Space).
 #
 # Con reintentos, porque probándolo en local la descarga de los dos gigas se
 # cortó por un error de red del CDN a los once minutos, y un corte así tumba la
-# construcción entera. Lo que ya bajó queda en la caché y no se vuelve a bajar.
+# construcción entera. Lo que ya bajó se conserva y no se vuelve a bajar.
 RUN for intento in 1 2 3; do \
-      python scripts/indice.py && break; \
+      python scripts/modelo.py && break; \
       [ "$intento" = 3 ] && exit 1; \
       echo "[!] reintento $intento de la descarga del modelo"; sleep 15; \
     done
+
+# El índice se construye aquí y no se copia del repositorio: así corresponde por
+# construcción al corpus que va en la imagen, y el repositorio del Space no
+# necesita guardar ningún binario.
+RUN python scripts/indice.py
 
 EXPOSE 7860
 CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "7860"]

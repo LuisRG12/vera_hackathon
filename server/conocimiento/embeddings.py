@@ -27,8 +27,11 @@ class Embedder:
 
     def __init__(self, modelo: str | None = None):
         self.nombre = modelo or settings.embedding_modelo
+        # `model_name` sigue decidiendo cómo se usa el modelo —prefijos,
+        # pooling—; `specific_model_path` solo cambia de dónde se leen los
+        # archivos.
         self._modelo = TextEmbedding(model_name=self.nombre,
-                                     cache_dir=settings.modelos_dir or None)
+                                     specific_model_path=settings.modelo_local or None)
 
     def fragmentos(self, textos: list[str]) -> list[np.ndarray]:
         """Lado «passage»: el texto de los documentos."""
