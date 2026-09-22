@@ -113,8 +113,9 @@ the defects each test uncovered — is in the build log,
 ## Measured
 
 Deterministic harnesses, no network, run in seconds:
-`uv run python -m evals.<name>` for `turno` (46 checks), `citas` (18),
-`lexico_colombiano` (120), `decision_seguridad` (24), `eco` (27), `limites` (11).
+`uv run python -m evals.<name>` for `turno` (69 checks), `llamada` (27), `citas`
+(18), `lexico_colombiano` (120), `decision_seguridad` (24), `eco` (27), `voz` (16),
+`limites` (11) and `vigilancia` (9).
 `evals.conocimiento` calibrates the evidence threshold against the real index,
 and `scripts/ensayo.py` runs a full conversation against the live model.
 

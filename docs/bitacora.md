@@ -423,3 +423,24 @@ primera inferencia leyendo los pesos del disco en frío; medida, esa primera
 consulta cuesta 87 milisegundos en el Space. No era eso. En vez de inventar una
 causa, la página muestra ahora cuánto tarda la búsqueda en documentos en cada
 turno, para que la próxima vez se vea dónde se fue el tiempo.
+
+**Una despedida que contradecía a la emergencia.** La segunda llamada por voz, ya
+con la agenda, mostró un defecto que había puesto yo al construir el cierre. Tras
+«esto no puede esperar, acuda a urgencias», el silencio recibió «¿me escucha? Si
+hay algo más que le preocupe, aquí estoy» —una invitación a seguir conversando a
+alguien que debería estar pidiendo ayuda—, y la despedida fue «que siga
+mejorando, y si algo cambia, comuníquese con su equipo». Ahora la llamada
+recuerda lo más grave que pasó en ella, y eso no baja nunca. Tras una alarma, la
+agenda sigue y la despedida recuerda llamar hoy al equipo. Tras una emergencia,
+la agenda se acaba y el primer silencio repite la instrucción y cuelga: retener
+con un asistente virtual a quien tiene que estar llamando a urgencias es
+demorarlo. Tras ideación, lo contrario de colgar rápido: el primer silencio
+recibe compañía y solo el segundo cierra.
+
+La misma llamada dejó ver que «cada cuánto me tomo la pastilla», dicho a mitad de
+frase y sin signo de interrogación, no contaba como pregunta: Vera no buscó en
+los documentos y no la contestó hasta que la paciente se quejó.
+
+Y al corregirlo apareció algo que no se estaba corriendo: el arnés de la sesión
+de voz llevaba roto desde la etapa del conocimiento, porque armaba el estado del
+servidor sin las piezas nuevas. El código estaba bien; nadie lo estaba mirando.
