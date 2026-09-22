@@ -9,7 +9,7 @@ Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai/ai-hackathons
 (September 2026).
 
 **Try it: [clrestrepo12-vera.hf.space](https://clrestrepo12-vera.hf.space)** — call
-Vera by voice, or type. The page has an English switch and five suggested
+Vera by voice, or type. The page has an English switch and six suggested
 phrases, each labelled with the path it takes. The conversation itself is in
 Spanish on purpose: understanding how a patient in Colombia actually speaks is
 the point.
@@ -106,6 +106,12 @@ the defects each test uncovered — is in the build log,
   treated a zero-information keyword ranking as real; keyword search ranked by
   filler words ("oiga", "me", "puedo"); and a gallbladder patient was answered
   from the appendicitis guide. Each fix is in the log, with its measurement.
+- **The call ends the way a nurse would end it.** Vera keeps an agenda — pain,
+  wound, fever, eating — asks what is still missing, and closes the call herself.
+  The goodbye carries the most serious thing said in the call: after an
+  emergency, silence gets the emergency instruction repeated and the call hangs
+  up, so the patient is not kept on the line with a bot when they should be
+  getting help.
 - **Barge-in that actually stops the audio.** Cancelling generation wasn't
   enough — the audio already in the browser kept playing. Interrupting Vera now
   drops it, and an interrupted turn still gets its risk assessment.
