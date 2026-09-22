@@ -8,10 +8,14 @@ Antes, una vez y en su propia terminal:
 
 El token queda guardado por la CLI de Hugging Face y este script nunca lo ve.
 
-La CLI se usa como módulo del entorno del proyecto —`huggingface_hub` ya viene
-como dependencia de fastembed— y no como el `hf` que instala `uv tool`: ese
-lanzador falla en Git Bash con «uv trampoline failed to canonicalize script
-path», y un despliegue no puede depender de en qué terminal se corre.
+La subida usa la API de `huggingface_hub`, que ya viene como dependencia de
+fastembed, y no la CLI `hf`. Con la CLI se probaron dos caminos y los dos
+fallaron en esta máquina: el lanzador que instala `uv tool` no arranca en Git
+Bash («uv trampoline failed to canonicalize script path»), y en Windows la CLI
+expande ella misma los comodines, así que el `*` de «borrar lo que sobre» se
+convertía en la lista de archivos de la carpeta actual —`notas/` y `registros/`
+incluidas—. Falló al leer los argumentos y no subió nada, pero es exactamente el
+tipo de error que no puede quedar a un comodín de distancia.
 
 **Por qué una instantánea y no un `git push` del historial.** El Space es otro
 repositorio git, y Hugging Face rechaza cualquier push que traiga un archivo
@@ -95,17 +99,20 @@ def main() -> int:
                 print(f"     {a}")
             return 0
 
-        r = subprocess.run([
-            sys.executable, "-m", "huggingface_hub.cli.hf",
-            "upload", args.space, str(destino), ".",
-            "--repo-type", "space",
-            "--delete", "*",
-            "--commit-message", f"Despliega {commit}",
-        ])
-        if r.returncode != 0:
-            print("[X] La subida falló. ¿Hay sesión (`python -m huggingface_hub.cli.hf auth "
-                  "login`) y el Space existe con SDK Docker?")
-            return r.returncode
+        from huggingface_hub import HfApi
+        try:
+            HfApi().upload_folder(
+                repo_id=args.space, repo_type="space", folder_path=str(destino),
+                # Lo que haya en el Space y no venga en esta instantánea se borra
+                # en el mismo commit: el Space queda igual a HEAD, ni más ni menos.
+                delete_patterns="*",
+                commit_message=f"Despliega {commit}",
+            )
+        except Exception as exc:  # noqa: BLE001 — se explica y se sale
+            print(f"[X] La subida falló: {type(exc).__name__}: {exc}")
+            print("    ¿Hay sesión (python -m huggingface_hub.cli.hf auth login) y el Space "
+                  "existe con SDK Docker?")
+            return 1
 
     print(f"\nSubido. El Space vuelve a construir la imagen: "
           f"https://huggingface.co/spaces/{args.space}")
