@@ -265,6 +265,35 @@ def negado(text: str, start: int) -> bool:
     return not _REVIERTE.search(text[start:])
 
 
+# La negación DESPUÉS del síntoma: «fiebre no he tenido», «pus no le he visto».
+# Poner el síntoma delante es como se contesta hablando —«¿fiebre? No, no he
+# tenido»—, y el motor solo buscaba la negación antes. La encontró la batería de
+# escenarios: a «No, fiebre no he tenido», dicho en una llamada tranquila, las
+# reglas levantaron un aviso de fiebre al equipo, y la llamada terminó con la
+# despedida de alarma.
+#
+# La trampa es que la misma forma también afirma: «la fiebre NO SE ME QUITA», «la
+# fiebre NO ME BAJA», «el dolor NO ME DEJA dormir» ponen el «no» después del
+# síntoma y lo reportan. Así que el verbo tiene que ser de tener, sentir o ver
+# —tener, presentar, sentir, dar, ver, notar—, y cualquier otro deja la alerta en
+# pie. Ante la duda, no se niega: es la misma dirección de todo el módulo.
+_NEG_DESPUES = re.compile(
+    r"^[\s¿?!.,;:]*(?:no[\s,.;:]+)?(?:no|nunca|jam[aá]s)\s+"
+    r"(?:(?:lo|la|los|las|me|se|le|les)\s+)?(?:(?:he|ha|hab[ií]a|hemos)\s+)?"
+    r"(?:tenido|tengo|ten[ií]a|tuve|presentado|presento|sentido|siento|sent[ií]a|"
+    r"dado|da|dio|visto|veo|notado|noto)\b",
+    re.I)
+
+
+def negado_despues(text: str, end: int) -> bool:
+    """¿Lo que sigue al síntoma lo niega? Ver `_NEG_DESPUES`."""
+    if not _NEG_DESPUES.match(text[end:end + 60]):
+        return False
+    # La adversativa también revierte esta forma: «fiebre no he tenido, pero sí
+    # dolor» no niega nada de lo que viene después. Mismo costo asumido que arriba.
+    return not _REVIERTE.search(text[end:])
+
+
 # ------------------------------------------------------------------ detección
 
 def detect_red_flags(text: str) -> list[RuleFlag]:
@@ -274,7 +303,7 @@ def detect_red_flags(text: str) -> list[RuleFlag]:
     flags: list[RuleFlag] = []
     for name, sev, rx in _RULES:
         for m in rx.finditer(text):
-            if not negado(text, m.start()):
+            if not (negado(text, m.start()) or negado_despues(text, m.end())):
                 flags.append(RuleFlag(name, sev, m.group(0)))
                 break
     return flags

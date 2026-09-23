@@ -78,6 +78,13 @@ POSITIVOS = [
     # Antes de reconocer el imperfecto esto salía bien por accidente.
     ("ayer no tenía fiebre pero hoy sí tengo", "fiebre", "high"),
     ("no tenía fiebre pero ahora sí", "fiebre", "high"),
+    # La contraparte de la negación pospuesta («fiebre no he tenido»): el «no»
+    # después del síntoma también afirma cuando el verbo no es de tener. Si la
+    # negación nueva se tragara estos, callaría fiebres que no ceden.
+    ("la fiebre no se me quita", "fiebre", "high"),
+    ("la fiebre no me ha bajado", "fiebre", "high"),
+    ("el dolor en el pecho no me deja dormir", "dolor_toracico", "critical"),
+    ("fiebre no he tenido, pero sí dolor en el pecho", "dolor_toracico", "critical"),
 
     # --- sangrado ('cuajarones' = coágulos) ---
     ("estoy botando cuajarones", "sangrado_masivo", "high"),
@@ -224,6 +231,13 @@ NEGATIVOS = [
     ("la cicatriz se ve bien", "evolución normal"),
     ("¿cuándo puedo volver a manejar?", "pregunta administrativa"),
     ("dormí bien anoche", "sin síntomas"),
+    # La negación después del síntoma, como se contesta hablando. La encontró la
+    # batería de escenarios con «No, fiebre no he tenido» en una llamada tranquila.
+    ("No, fiebre no he tenido", "negación pospuesta"),
+    ("fiebre no tengo", "negación pospuesta, presente"),
+    ("¿Fiebre? No, no he tenido", "negación pospuesta, contestando"),
+    ("dolor en el pecho no he sentido", "negación pospuesta, otro verbo"),
+    ("pus no le he visto a la herida", "negación pospuesta, con clítico"),
 ]
 
 
