@@ -130,6 +130,10 @@ class Settings(BaseSettings):
     # de esas se encarga la cita verificada, que deja constancia de con qué
     # fragmento respondió.
     #
+    # Remedido cuando el plan del paciente pasó a entrar siempre entre lo que ve el
+    # modelo (ver `Recuperador._mejor_del_plan`): el mismo 0,83 da 18/21
+    # respondidas y sigue en 0 fugas clínicas.
+    #
     # OJO: el número NO transfiere. Ni entre modelos de embeddings, ni entre
     # corpus, ni siquiera entre versiones de esta misma capa: al dejar de
     # alimentar BM25 con palabras vacías, el umbral tuvo que subir de 0,82 a

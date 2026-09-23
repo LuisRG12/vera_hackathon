@@ -170,14 +170,13 @@ def _detalle(dentro, fuera, umbral: float, lexico: int) -> None:
     for pregunta, esperado, r in dentro:
         vistos = [c.fragmento.documento for c in r.citas[:settings.k_evidencia]]
         estado = "responde" if hay(r) else "SE ABSTIENE"
-        # Se exige que sea la PRIMERA, no que esté entre las que se muestran.
-        # Medir lo segundo daba por buenos turnos que en la conversacion de
-        # ensayo salieron mal: con el documento correcto en segundo lugar, el
-        # modelo respondio con el primero, que era una guia general.
-        if vistos[0] == esperado:
+        # La fuente esperada tiene que estar entre las que ve el modelo. Hubo un
+        # tiempo en que se exigía que fuera la primera, porque con la correcta en
+        # segundo lugar el modelo respondía con una guía general. Desde que el
+        # plan del paciente va siempre primero —y las instrucciones dicen que
+        # manda— la primera es el plan a propósito, y exigirlo no mediría nada.
+        if esperado in vistos:
             fuente = "fuente ok"
-        elif esperado in vistos:
-            fuente = f"2a ({vistos[0]})"
         else:
             fuente = f"OTRA FUENTE ({vistos[0]})"
         print(f"  {r.max_denso:.3f} lex={r.solape_lexico}  {estado:12s} {fuente:28s} {pregunta}")
@@ -217,9 +216,9 @@ def main() -> int:
                                   settings.min_lexico)
     _, _, fugas_admin = _cuenta(dentro, admin, settings.min_evidencia, settings.min_lexico)
     correctas = sum(1 for _, esperado, r in dentro
-                    if r.citas and r.citas[0].fragmento.documento == esperado)
+                    if esperado in [c.fragmento.documento for c in r.citas[:settings.k_evidencia]])
     print(f"\nrespondidas {ok}/{len(dentro)} · rechazos falsos {rechazos} · fugas {fugas}")
-    print(f"documento correcto como PRIMERA fuente: {correctas}/{len(dentro)}")
+    print(f"documento correcto entre los que ve el modelo: {correctas}/{len(dentro)}")
     return 0 if fugas == 0 else 1
 
 

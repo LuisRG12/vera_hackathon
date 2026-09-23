@@ -149,7 +149,7 @@ def _rangos(puntajes: np.ndarray) -> np.ndarray:
     return rangos
 
 
-def _diversificar(citas: list[Cita], k: int) -> list[Cita]:
+def _diversificar(citas: list[Cita], k: int, primero: Cita | None = None) -> list[Cita]:
     """Reordena para que entre los `k` que ve el modelo no se repita documento.
 
     **Un documento largo copa el top-k y esconde a los demás.** Medido sobre este
@@ -171,6 +171,12 @@ def _diversificar(citas: list[Cita], k: int) -> list[Cita]:
     primeros: list[Cita] = []
     resto: list[Cita] = []
     vistos: set[str] = set()
+    # El plan del paciente va primero, y su documento cuenta como visto: el resto
+    # de lugares es para otras fuentes. Ver `Recuperador._mejor_del_plan`.
+    if primero is not None:
+        primeros.append(primero)
+        vistos.add(primero.fragmento.documento)
+        citas = [c for c in citas if c.fragmento.id != primero.fragmento.id]
     for c in citas:
         if len(primeros) < k and c.fragmento.documento not in vistos:
             vistos.add(c.fragmento.documento)
@@ -240,7 +246,35 @@ class Recuperador:
 
         citas = [Cita(fragmentos[i], float(denso[i]), float(disperso[i]), float(rrf[i]))
                  for i in np.argsort(-rrf)[:k]]
-        return self._veredicto(texto, _diversificar(citas, settings.k_evidencia))
+        del_plan = self._mejor_del_plan(denso, disperso, rrf)
+        return self._veredicto(texto, _diversificar(citas, settings.k_evidencia, del_plan))
+
+    def _mejor_del_plan(self, denso, disperso, rrf) -> Cita | None:
+        """La sección del plan del paciente que mejor responde, por coseno.
+
+        **El plan del paciente se consulta siempre.** Es la promesa del producto
+        —responder con los documentos de ese paciente— y la batería de escenarios
+        mostró dos maneras de romperla cuando el plan compite por el top-k como
+        un documento más:
+
+        - A «¿qué puedo comer estos días?», la sección «Alimentación» era la
+          mejor en coseno (0,831), pero la fusión la dejó quinta y la regla de un
+          fragmento por documento la descartó: «Actividad», del mismo plan, ya
+          estaba adentro. Vera contestó «puede comer normalmente», y el plan dice
+          comidas livianas en porciones pequeñas.
+        - A «¿me puedo tomar un ibuprofeno?», el plan ni siquiera entró entre los
+          ocho recuperados. El modelo solo vio guías generales, una nombra el
+          ibuprofeno, y contestó «sí». El plan dice que no cambie el medicamento.
+
+        Se elige por coseno y no por la fusión porque la fusión es justo lo que
+        dejó fuera a «Alimentación»: el término exacto que BM25 premia no está
+        cuando el paciente dice «comer» y el plan, «comidas».
+        """
+        del_plan = [i for i, f in enumerate(self.fragmentos) if f.del_paciente]
+        if not del_plan:
+            return None
+        i = max(del_plan, key=lambda j: denso[j])
+        return Cita(self.fragmentos[i], float(denso[i]), float(disperso[i]), float(rrf[i]))
 
     def _veredicto(self, texto: str, citas: list[Cita]) -> Recuperado:
         """Si lo recuperado constituye evidencia suficiente.
@@ -281,5 +315,13 @@ def formatear(citas: list[Cita]) -> str:
     """
     if not citas:
         return "(sin fragmentos relevantes en la base de conocimiento)"
+
+    # Cada fragmento dice de qué clase de fuente viene. Sin eso el modelo no tiene
+    # cómo saber que «plan_de_egreso…» es lo que el cirujano le indicó a esta
+    # paciente y «analgesicos.md» una guía para cualquiera, y con las dos delante
+    # contestó con la guía. Las instrucciones le dicen cuál manda.
+    def clase(c: Cita) -> str:
+        return "SU PLAN DE EGRESO" if c.fragmento.del_paciente else "guía general"
+
     return "\n".join(
-        f"[{i}] ({c.referencia}) {c.texto}" for i, c in enumerate(citas, start=1))
+        f"[{i}] ({clase(c)} · {c.referencia}) {c.texto}" for i, c in enumerate(citas, start=1))
