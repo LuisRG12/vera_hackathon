@@ -109,6 +109,23 @@ LEXICON: dict[str, dict] = {
             r"(dolor|duele|molest\w*)[^.]{0,25}"
             r"(se (me |le )?corre|se (me |le )?pasa|(me |le )?sube|(me |le )?baja|irradia)"
             r"[^.]{0,20}(brazo|cuello|mand[ií]bula|quijada|hombro)",
+            # Con el lugar del pecho en medio. «Me duele el lado izquierdo del
+            # pecho» no disparaba: el primer patrón admite quince caracteres entre
+            # «duele» y «pecho», y «el lado izquierdo del» son veintitrés. Lo
+            # encontró la batería de escenarios, buscando otra cosa. Se exige la
+            # estructura —lado, parte, centro— y no se ensancha la ventana, que es
+            # lo que dejaría pasar «me duele la cabeza y tengo el pecho congestionado».
+            r"(duele|dolor|molest\w*|aprieta|opri\w*|presi[oó]n|punzada)\s+(?:en\s+)?(?:el\s+|la\s+)?"
+            r"(?:lado\s+(?:izquierdo|derecho)|parte\s+(?:izquierda|derecha|de\s+arriba|de\s+abajo)|"
+            r"centro|mitad)\s+del?\s+pecho",
+            # Irradiación HACIA el pecho, sin exigir la palabra de dolor en la
+            # misma frase: llega partida —«me duele el brazo» y luego «y se me
+            # pasa al lado izquierdo del pecho»—, y con la frase partida solo el
+            # juez escalaba, en paralelo, mientras Vera preguntaba por la fiebre.
+            # Se dejan fuera «bajar» y «subir» a propósito: «la gripa se me bajó al
+            # pecho» es un resfriado y «la acidez se me sube al pecho», agrieras.
+            r"se\s+(?:me|le)\s+(?:corr\w*|pas\w*|va|irradi\w*)\s+(?:al|hacia\s+el|para\s+el|hasta\s+el)\s+"
+            r"(?:lado\s+(?:izquierdo|derecho)\s+del\s+)?pecho",
         ],
     },
     "perdida_conciencia": {

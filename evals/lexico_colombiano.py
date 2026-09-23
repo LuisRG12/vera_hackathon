@@ -85,6 +85,12 @@ POSITIVOS = [
     ("la fiebre no me ha bajado", "fiebre", "high"),
     ("el dolor en el pecho no me deja dormir", "dolor_toracico", "critical"),
     ("fiebre no he tenido, pero sí dolor en el pecho", "dolor_toracico", "critical"),
+    # El pecho con el lugar en medio, y la irradiación hacia el pecho. Los encontró
+    # la batería de escenarios contra el modelo real.
+    ("me duele el lado izquierdo del pecho", "dolor_toracico", "critical"),
+    ("tengo una presión en la parte de arriba del pecho", "dolor_toracico", "critical"),
+    ("y se me pasa al lado izquierdo del pecho", "dolor_toracico", "critical"),
+    ("el dolor del brazo se me corre al pecho", "dolor_toracico", "critical"),
 
     # --- sangrado ('cuajarones' = coágulos) ---
     ("estoy botando cuajarones", "sangrado_masivo", "high"),
@@ -238,6 +244,11 @@ NEGATIVOS = [
     ("¿Fiebre? No, no he tenido", "negación pospuesta, contestando"),
     ("dolor en el pecho no he sentido", "negación pospuesta, otro verbo"),
     ("pus no le he visto a la herida", "negación pospuesta, con clítico"),
+    # Lo que la irradiación hacia el pecho NO puede tragarse: dos dichos que no
+    # son dolor torácico, y un pecho que está lejos del dolor.
+    ("la gripa se me bajó al pecho", "resfriado, no irradiación"),
+    ("la acidez se me sube al pecho", "agrieras, no irradiación"),
+    ("me duele la cabeza y tengo el pecho congestionado", "el pecho lejos del dolor"),
 ]
 
 
