@@ -37,7 +37,8 @@ from server.config import settings
 from server.conocimiento.citas import derivar, limpiar
 from server.conocimiento.recuperacion import Cita, formatear
 from server.dialogo.agenda import PREGUNTA, PREGUNTA_CIERRE, Agenda, es_cierre
-from server.dialogo.pregunta import es_pregunta
+from server.dialogo.medicamentos import medicamento_ajeno
+from server.dialogo.pregunta import es_pregunta, pide_confirmacion
 from server.dialogo.prompts import (
     CIERRE,
     CON_EVIDENCIA,
@@ -60,6 +61,8 @@ from server.seguridad.respuestas import (
     CIERRE_ALARMA,
     CIERRE_EMERGENCIA,
     EMERGENCIA,
+    MEDICAMENTO_AJENO,
+    MEDICAMENTO_AJENO_CON_ALARMA,
 )
 
 # El objetivo del turno lo fija el código, no lo elige el modelo. Este es el de
@@ -68,15 +71,40 @@ from server.seguridad.respuestas import (
 OBJETIVO_NORMAL = "reconocer lo que dijo y dar seguimiento a cómo se siente"
 # «Sin ofrecerle ayuda» porque con este objetivo el modelo tiende a ofrecerla
 # —«¿necesita que le ayude a contactarlos?»—, y Vera no tiene cómo cumplir.
-OBJETIVO_ALARMA = ("pedirle al paciente que contacte hoy mismo a su equipo clínico, "
-                   "sin ofrecerle ayuda para hacerlo")
+#
+# «En esta misma respuesta»: en la batería, ante «me siento maluca y con
+# calentura», Vera preguntó qué temperatura tenía y no le dijo que llamara. La
+# pregunta es razonable, pero lo primero es encaminarla.
+OBJETIVO_ALARMA = ("decirle en esta misma respuesta que contacte hoy mismo a su equipo "
+                   "clínico, sin ofrecerle ayuda para hacerlo")
 # Después de una emergencia o de ideación, la agenda se acaba: seguir preguntando
 # cómo va comiendo a alguien que acaba de oír «acuda a urgencias» es decirle que
 # no era tan grave.
-OBJETIVO_TRAS_EMERGENCIA = ("responder en una sola frase y recordarle que lo que contó "
-                            "necesita atención inmediata, sin hacerle preguntas de seguimiento")
+#
+# «Sin darle ninguna otra indicación»: en la batería de escenarios, a «¿y qué hago
+# mientras tanto?» contestó bien —que vaya a urgencias— y añadió «quédese
+# tranquilo y en reposo», una indicación clínica que no está en ningún documento.
+OBJETIVO_TRAS_EMERGENCIA = ("recordarle en una sola frase que lo que contó necesita atención "
+                            "inmediata y que busque urgencias o a su equipo ya, sin darle "
+                            "ninguna otra indicación ni hacerle preguntas")
+# El turno que sigue a una alarma. La batería lo encontró: a «¿y eso es grave?»,
+# justo después de reportar pus, la respuesta fue «eso no lo tengo en sus
+# documentos, puedo dejarle la inquietud anotada». La pregunta que sigue a una
+# alarma es sobre la alarma, y lo que hay que decirle no está en los documentos:
+# que eso se revisa hoy con su equipo.
+OBJETIVO_TRAS_ALARMA = ("responder sin afirmar nada clínico que no esté en el CONTEXTO y "
+                        "recordarle que lo que contó hay que revisarlo hoy con su equipo "
+                        "clínico, sin ofrecerle ayuda para hacerlo")
 OBJETIVO_ACOMPANAR = ("acompañarlo con calidez y preguntarle si hay alguien que pueda estar "
                       "con él ahora, sin preguntas clínicas")
+# Cuando le piden que confirme algo. Ver `pide_confirmacion`. No es un «no» de
+# plano: «dígame que ya me puedo bañar» lo responde el plan, y eso se dice. Lo que
+# no se hace es confirmar lo que el plan no dice, y ese turno no sigue la agenda:
+# la pregunta de la lista era justo lo que dejaba el pedido sin contestar.
+OBJETIVO_CONFIRMACION = ("no confirmarle lo que pide: si el CONTEXTO de su plan lo "
+                         "responde, decirle lo que indica; si no, decirle que eso no puede "
+                         "confirmárselo y que lo decide su equipo clínico. Sin preguntarle "
+                         "nada más en este turno")
 
 # La despedida según lo más grave que pasó en la llamada. Ver respuestas.py.
 DESPEDIDA_SEGUN_GRAVEDAD = {
@@ -137,6 +165,7 @@ class TurnoVera:
     # de cualquier auditoría clínica, y sin el campo habría que deducirla.
     redactado_por: str
     # ok | emergencia | degradado_sin_modelo | respuesta_vacia | sin_evidencia | cierre
+    # | medicamento_ajeno
     marca: str = "ok"
     usage: dict = field(default_factory=dict)
     latencia_ms: dict = field(default_factory=dict)
@@ -164,6 +193,10 @@ class Conversacion:
         # la voz, y la que corre en los arneses que no quieren cargar el modelo
         # de embeddings para probar otra cosa.
         self.rec = recuperador
+        # El texto del plan del paciente, para saber qué medicamentos le
+        # indicaron. Ver server/dialogo/medicamentos.py.
+        self._texto_plan = " ".join(
+            f.texto for f in getattr(recuperador, "fragmentos", []) if f.del_paciente)
         self.historial: list[dict] = []
         # Lo que Vera ya dijo al contestar, si lo dijo. El modelo no lo escribió
         # —es texto fijo—, así que sin esto no sabe que ya se presentó y vuelve a
@@ -190,6 +223,8 @@ class Conversacion:
         # una llamada con una emergencia aunque el turno siguiente sea tranquilo.
         # Decide la despedida, lo que se dice al silencio y si la agenda sigue.
         self.gravedad: str | None = None
+        # Si el turno anterior escaló. Ver `OBJETIVO_TRAS_ALARMA`.
+        self._alarma_previa = False
 
     async def turno(self, texto: str):
         """Genera ("speak", frase) mientras se habla y termina con ("turn", TurnoVera)."""
@@ -222,6 +257,22 @@ class Conversacion:
             ra, uso = await _esperar(juez)
             yield "turn", self._cerrar(texto, flags, ra, respuesta, "codigo", "emergencia",
                                        uso, lat, t0)
+            return
+
+        # Un medicamento que su plan no nombra no se discute con el modelo: lo
+        # contesta el código. Ver server/dialogo/medicamentos.py. Va antes de
+        # recuperar: las guías generales son justo lo que confundía al modelo, y
+        # así el texto suena sin esperar a la búsqueda.
+        if medicamento_ajeno(texto, self._texto_plan):
+            respuesta = (MEDICAMENTO_AJENO_CON_ALARMA
+                         if severidad == "high" or self._alarma_previa
+                         else MEDICAMENTO_AJENO)
+            lat["primera_frase_ms"] = _ms(t0)
+            dichas.append(respuesta)
+            yield "speak", respuesta
+            ra, uso = await _esperar(juez)
+            yield "turn", self._cerrar(texto, flags, ra, respuesta, "codigo",
+                                       "medicamento_ajeno", uso, lat, t0)
             return
 
         # El conocimiento, antes del modelo. Va en un hilo porque es CPU —el
@@ -273,7 +324,8 @@ class Conversacion:
         # respuesta no es de los documentos: es repetir que busque atención ya,
         # que es lo que pide el objetivo de ese turno.
         if (recuperado is not None and not hay_evidencia and es_pregunta(texto)
-                and severidad != "high" and self.gravedad not in ("emergencia", "ideacion")):
+                and severidad != "high" and not self._alarma_previa
+                and self.gravedad not in ("emergencia", "ideacion")):
             lat["primera_frase_ms"] = _ms(t0)
             dichas.append(SIN_INFORMACION)
             yield "speak", SIN_INFORMACION
@@ -283,7 +335,8 @@ class Conversacion:
             return
 
         objetivo = (OBJETIVO_ALARMA if severidad == "high"
-                    else self._objetivo(respondiendo=hay_evidencia and es_pregunta(texto)))
+                    else self._objetivo(respondiendo=hay_evidencia and es_pregunta(texto),
+                                        confirmacion=pide_confirmacion(texto)))
         user = self._instruccion(texto, objetivo, citas, hay_evidencia)
         if self.apertura and not self.historial:
             user = f"VERA YA DIJO AL CONTESTAR LA LLAMADA: «{self.apertura}»\n\n{user}"
@@ -357,7 +410,7 @@ class Conversacion:
         yield "turn", self._cerrar(texto, flags, ra, utterance, redactado_por, marca,
                                    uso, lat, t0, verificadas, hay_evidencia)
 
-    def _objetivo(self, respondiendo: bool) -> str:
+    def _objetivo(self, respondiendo: bool, confirmacion: bool = False) -> str:
         """Qué tiene que hacer Vera en este turno, además de contestar.
 
         Lo que falta de la agenda, uno por turno; cuando ya no falta nada, la
@@ -368,10 +421,19 @@ class Conversacion:
             return OBJETIVO_ACOMPANAR
         if self.gravedad == "emergencia":
             return OBJETIVO_TRAS_EMERGENCIA
-        base = "responder su pregunta con el CONTEXTO" if respondiendo else "reconocer lo que dijo"
+        if self._alarma_previa:
+            return OBJETIVO_TRAS_ALARMA
+        if confirmacion:
+            return OBJETIVO_CONFIRMACION
+        base ="responder su pregunta con el CONTEXTO" if respondiendo else "reconocer lo que dijo"
         if (tema := self.agenda.siguiente()) is not None:
             self.agenda.asignar(tema)
-            return f"{base} y, en la misma respuesta, preguntarle {PREGUNTA[tema]}"
+            # «Si no contó nada nuevo»: en la batería, a «y se me pasa al lado
+            # izquierdo del pecho» Vera contestó «¿ha tenido fiebre?». El juez
+            # escaló, pero la pregunta de la lista le ganó a lo que la paciente
+            # acababa de contar. La lista es para cuando no hay nada más urgente.
+            return (f"{base} y, si no contó nada nuevo que necesite seguimiento, "
+                    f"preguntarle {PREGUNTA[tema]}")
         if not self.agenda.cierre_preguntado:
             self.agenda.cierre_preguntado = True
             return f"{base} y preguntarle {PREGUNTA_CIERRE}"
@@ -433,6 +495,7 @@ class Conversacion:
         decision = combinar(flags, ra)
         self._previo = None if decision.risk in ("high", "critical") else texto
         self._anotar_gravedad(flags, decision)
+        self._alarma_previa = decision.action in ("escalate", "emergency")
         lat["total_ms"] = _ms(t0)
         return TurnoVera(utterance=utterance, decision=decision,
                          redactado_por=redactado_por, marca=marca,

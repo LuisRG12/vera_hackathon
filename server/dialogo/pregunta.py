@@ -52,6 +52,13 @@ _PREGUNTA = re.compile(
     # así que no contó como pregunta, Vera no buscó en los documentos y no la
     # contestó hasta que la paciente se quejó en el turno siguiente.
     r"|\bcada\s+cu[aá]nto\b"
+    # El pedido, que en esta conversación es una pregunta dicha en imperativo:
+    # «dígame cada cuánto…», «quisiera saber si…». Lo encontró la batería de
+    # escenarios: a «dígame que no es necesario ir al médico si me duele» Vera no
+    # le contestó —no contaba como pregunta— y le preguntó por la fiebre. Solo al
+    # principio de la frase, como el interrogativo pelado.
+    rf"|^\s*(?:{_MULETILLA})?(?:d[ií]game|dime|expl[ií]queme|expl[ií]came|"
+    r"quisiera\s+saber|quiero\s+saber|necesito\s+saber)\b"
     # Los verbos de una llamada de seguimiento detrás de un interrogativo, pero
     # solo **con tilde**. El reconocedor escribe «cuándo» cuando se pregunta y
     # «cuando» cuando es conjunción: así «¿cuándo me quitan los puntos?» cuenta
@@ -75,6 +82,23 @@ _CORTESIA = re.compile(
     r"me\s+(?:escucha|oye)s?|est[aá]s?\s+ah[ií]|hay\s+alguien|qui[eé]n\s+habla|"
     r"con\s+qui[eé]n\s+hablo)\s*\??)?[\s,.!¿?]*$",
     re.I)
+
+
+# El paciente le pide a Vera que le confirme algo: «dígame que no es necesario ir
+# al médico», «confírmeme que eso es normal». No es una pregunta cualquiera: la
+# respuesta cómoda es la que pide, y en la batería el modelo se la dio a medias
+# —«el dolor después de la cirugía es normal»— y siguió con la agenda. Solo con el
+# verbo del pedido al principio y algo que confirmar detrás: «dígame qué hago»,
+# con o sin tilde, es otra cosa.
+_CONFIRMACION = re.compile(
+    rf"^\s*(?:{_MULETILLA})?(?:d[ií]game|dime|conf[ií]rme(?:me)?|aseg[uú]reme|j[uú]reme)"
+    r"\s+que\s+(?:no|s[ií]|ya|puedo|es|est[aá]|eso|me)\b",
+    re.I)
+
+
+def pide_confirmacion(texto: str) -> bool:
+    """Pide que Vera le confirme algo, en vez de preguntarlo."""
+    return bool(_CONFIRMACION.search(texto.strip()))
 
 
 def es_cortesia(texto: str) -> bool:

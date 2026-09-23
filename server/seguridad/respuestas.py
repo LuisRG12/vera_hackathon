@@ -35,10 +35,29 @@ EMERGENCIA = (
 # protocolo de ideación de verdad es más que una frase, y aquí lo único que se
 # afirma es que despedirla con «acuda a urgencias» era peor.
 ACOMPANAR = (
-    "Gracias por confiarme algo así de difícil. No lo voy a dejar solo con esto: "
-    "ya estoy avisando a su equipo clínico para que lo contacten ahora. "
-    "¿Hay alguien que pueda acompañarlo mientras tanto?"
+    "Gracias por confiarme algo así de difícil. No va a estar sin apoyo con esto: "
+    "ya estoy avisando a su equipo clínico para que se comuniquen con usted ahora. "
+    "¿Hay alguien que pueda estar con usted mientras tanto?"
 )
+
+# Cuando el paciente pregunta por un medicamento que no está en su plan. Ver
+# server/dialogo/medicamentos.py: con una regla escrita que se lo prohibía, el
+# modelo igual avaló el ibuprofeno. No dice «no lo tome» ni «tómelo»: dice quién
+# decide, y que no se decide solo.
+MEDICAMENTO_AJENO = (
+    "Eso tiene que decidirlo su equipo clínico: no tome, no cambie ni deje ningún "
+    "medicamento por su cuenta, aunque sea de venta libre. Si la molestia no cede con "
+    "lo que le indicaron, comuníquese con ellos."
+)
+# La misma, cuando en la llamada ya hay un signo de alarma: «tengo fiebre de 39,
+# ¿me tomo un ibuprofeno?». La de arriba solo manda a llamar si la molestia no
+# cede, y con una alarma delante eso se queda corto.
+MEDICAMENTO_AJENO_CON_ALARMA = (
+    "Eso tiene que decidirlo su equipo clínico: no tome, no cambie ni deje ningún "
+    "medicamento por su cuenta, aunque sea de venta libre. Y lo que me cuenta hay que "
+    "revisarlo hoy mismo: comuníquese hoy con su equipo."
+)
+
 
 # ------------------------------------------------------------------------------
 # Cómo termina una llamada según lo que pasó en ella.
@@ -72,10 +91,10 @@ CIERRE_EMERGENCIA = (
 # ideación de verdad es más que dos frases, y lo único que se afirma aquí es que
 # colgar al primer silencio o despedirse con «que siga mejorando» era peor.
 RETOMAR_ACOMPANAR = (
-    "Sigo aquí con usted. ¿Hay alguien que pueda acompañarlo en este momento?"
+    "Sigo aquí con usted. ¿Hay alguien que pueda estar con usted en este momento?"
 )
 CIERRE_ACOMPANAR = (
-    "Gracias por contarme. Su equipo clínico ya está avisado para contactarlo. Si "
-    "siente que puede hacerse daño, llame de inmediato a la línea de emergencias o "
-    "pida a alguien de confianza que lo acompañe."
+    "Gracias por contarme. Su equipo clínico ya está avisado para comunicarse con "
+    "usted. Si siente que puede hacerse daño, llame de inmediato a la línea de "
+    "emergencias o pida a alguien de confianza que esté con usted."
 )

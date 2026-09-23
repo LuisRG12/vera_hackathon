@@ -17,7 +17,7 @@ import sys
 from server.conocimiento.indice import Fragmento
 from server.conocimiento.recuperacion import Cita, Recuperado
 from server.dialogo.agenda import PREGUNTA, PREGUNTA_CIERRE
-from server.dialogo.pregunta import es_pregunta
+from server.dialogo.pregunta import es_pregunta, pide_confirmacion
 from server.dialogo.prompts import (
     CIERRE,
     DEGRADADO,
@@ -41,6 +41,8 @@ from server.seguridad.respuestas import (
     CIERRE_ALARMA,
     CIERRE_EMERGENCIA,
     EMERGENCIA,
+    MEDICAMENTO_AJENO,
+    MEDICAMENTO_AJENO_CON_ALARMA,
 )
 
 PASS, FAIL = "  [OK]", "  [FALLA]"
@@ -118,6 +120,14 @@ class RecuperadorDeMentira:
                            "El dolor es una señal que envía el sistema nervioso."),
                  0.80, 0.0, 0.01),
         ]
+
+    @property
+    def fragmentos(self):
+        # Un plan del paciente que nombra su medicamento, para la ruta del
+        # medicamento ajeno.
+        return [Fragmento(9, "plan.md", "Plan de egreso", "Medicamentos",
+                          "Acetaminofén de 500 mg, una tableta cada ocho horas.",
+                          del_paciente=True)]
 
     def consultar(self, texto: str):
         self.consultas += 1
@@ -405,6 +415,49 @@ async def main() -> int:
           frases != [SIN_INFORMACION] and OBJETIVO_TRAS_EMERGENCIA in m.ultimo_prompt,
           str(frases))
 
+    print("\n== Un medicamento que su plan no nombra lo contesta el código ==")
+    m = ModeloDeMentira()
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    frases, t = await turno(conv, "Me duele mucho la herida, ¿me puedo tomar un ibuprofeno?")
+    check("el ibuprofeno, que su plan no nombra, recibe el texto fijo",
+          frases == [MEDICAMENTO_AJENO] and m.respuestas_pedidas == 0, str(frases))
+    check("marcado y escrito por el código",
+          t.marca == "medicamento_ajeno" and t.redactado_por == "codigo")
+    m = ModeloDeMentira()
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    await turno(conv, "¿el acetaminofén me sirve si me duele?")
+    check("el acetaminofén, que su plan sí nombra, sigue la ruta normal",
+          m.respuestas_pedidas == 1)
+    m = ModeloDeMentira()
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    await turno(conv, "me recetaron amoxicilina después de la cirugía anterior")
+    check("nombrar un medicamento sin querer hacer nada con él no es la ruta",
+          m.respuestas_pedidas == 1)
+    m = ModeloDeMentira()
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    frases, t = await turno(conv, "tengo fiebre de 39, ¿me tomo un ibuprofeno?")
+    check("con una alarma en el turno, el texto manda a llamar hoy",
+          frases == [MEDICAMENTO_AJENO_CON_ALARMA], str(frases))
+    check("y la alarma sigue contando: escala",
+          t.decision.action == "escalate", t.decision.action)
+
+    print("\n== Un pedido de confirmación no se confirma ni sigue la agenda ==")
+    m = ModeloDeMentira()
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    await turno(conv, "Dígame que no es necesario ir al médico si me duele")
+    check("el turno lleva el objetivo de no confirmar",
+          "no confirmarle lo que pide" in m.ultimo_prompt, m.ultimo_prompt[-300:])
+    check("y no le pide al modelo la pregunta de la agenda",
+          not any(p in m.ultimo_prompt for p in PREGUNTA.values()), m.ultimo_prompt[-300:])
+    for texto, es in [
+        ("Dígame que no es necesario ir al médico si me duele", True),
+        ("oiga, confírmeme que eso es normal", True),
+        ("dígame que hago con las gasas", False),
+        ("dígame cada cuánto me tomo la pastilla", False),
+    ]:
+        check(f"«{texto[:44]}» {'pide' if es else 'no pide'} confirmación",
+              pide_confirmacion(texto) == es)
+
     print("\n== Preguntas sin signo de interrogación ==")
     for texto, es in [
         ("Pues el dolor creo que ha estado estable cada cuanto me tomo la pastilla para el dolor.",
@@ -417,6 +470,10 @@ async def main() -> int:
         # tocó: el reconocedor se come los signos de interrogación.
         ("me da sueño cuando me tomo la pastilla", False),
         ("me siento bien, gracias", False),
+        # El pedido en imperativo, al principio de la frase.
+        ("Dígame que no es necesario ir al médico si me duele", True),
+        ("bueno, explíqueme lo de las gasas", True),
+        ("mi hija me dijo que le dijera que estoy bien", False),
     ]:
         check(f"«{texto[:48]}» {'es' if es else 'no es'} pregunta", es_pregunta(texto) == es)
 
