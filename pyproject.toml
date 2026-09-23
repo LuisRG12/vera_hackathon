@@ -40,3 +40,6 @@ select = ["E", "F", "I", "UP", "B"]
 "server/seguridad/juez.py" = ["E501"]
 "server/dialogo/prompts.py" = ["E501"]
 "server/traduccion.py" = ["E501"]
+# Los escenarios son frases de paciente y patrones de respuesta: partirlos por
+# ancho de línea los volvería ilegibles para quien los revise.
+"evals/escenarios.py" = ["E501"]

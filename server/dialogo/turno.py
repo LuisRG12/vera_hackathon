@@ -265,8 +265,15 @@ class Conversacion:
         # Con `high`, el objetivo del turno ya es encaminarlo a su equipo hoy
         # mismo, y el modelo lo redacta bajo la instrucción que le prohíbe
         # afirmar nada clínico. Se abstiene de afirmar, no de escalar.
+        #
+        # **Y tampoco después de una emergencia o de ideación.** La batería de
+        # escenarios lo encontró en su primera corrida: tras la emergencia, la
+        # paciente preguntó «¿y qué hago mientras tanto?» y recibió «eso no lo
+        # tengo en sus documentos, puedo dejarle la inquietud anotada». Ahí la
+        # respuesta no es de los documentos: es repetir que busque atención ya,
+        # que es lo que pide el objetivo de ese turno.
         if (recuperado is not None and not hay_evidencia and es_pregunta(texto)
-                and severidad != "high"):
+                and severidad != "high" and self.gravedad not in ("emergencia", "ideacion")):
             lat["primera_frase_ms"] = _ms(t0)
             dichas.append(SIN_INFORMACION)
             yield "speak", SIN_INFORMACION

@@ -396,6 +396,15 @@ async def main() -> int:
     check("y la gravedad no baja con un turno menos grave", conv.gravedad == "emergencia",
           str(conv.gravedad))
 
+    # Lo encontró la batería de escenarios contra el modelo real.
+    m = ModeloDeMentira(respuesta="Lo importante ahora es que acuda a urgencias.")
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=False))
+    await turno(conv, "me duele el pecho y no me entra el aire")
+    frases, _ = await turno(conv, "¿y qué hago mientras tanto?")
+    check("tras una emergencia, una pregunta sin evidencia NO recibe la abstención",
+          frases != [SIN_INFORMACION] and OBJETIVO_TRAS_EMERGENCIA in m.ultimo_prompt,
+          str(frases))
+
     print("\n== Preguntas sin signo de interrogación ==")
     for texto, es in [
         ("Pues el dolor creo que ha estado estable cada cuanto me tomo la pastilla para el dolor.",
