@@ -112,6 +112,12 @@ the defects each test uncovered — is in the build log,
   emergency, silence gets the emergency instruction repeated and the call hangs
   up, so the patient is not kept on the line with a bot when they should be
   getting help.
+- **A medication that isn't in the patient's plan is answered by code.** Asked
+  "can I take an ibuprofen?", the model said yes once, and — with a written rule
+  forbidding it — "ibuprofen can help, confirm the dose with your team" the
+  second time: a general guide that names ibuprofen beat the plan that says not
+  to change medication. Now any drug the plan doesn't name gets a fixed answer:
+  your care team decides that.
 - **Barge-in that actually stops the audio.** Cancelling generation wasn't
   enough — the audio already in the browser kept playing. Interrupting Vera now
   drops it, and an interrupted turn still gets its risk assessment.
@@ -119,11 +125,17 @@ the defects each test uncovered — is in the build log,
 ## Measured
 
 Deterministic harnesses, no network, run in seconds:
-`uv run python -m evals.<name>` for `turno` (69 checks), `llamada` (27), `citas`
-(18), `lexico_colombiano` (120), `decision_seguridad` (24), `eco` (27), `voz` (16),
-`limites` (11) and `vigilancia` (9).
-`evals.conocimiento` calibrates the evidence threshold against the real index,
-and `scripts/ensayo.py` runs a full conversation against the live model.
+`uv run python -m evals.<name>` for `turno` (85 checks), `llamada` (27), `citas`
+(18), `lexico_colombiano` (136), `confusiones` (128), `decision_seguridad` (24),
+`eco` (27), `voz` (16), `limites` (11) and `vigilancia` (9).
+`evals.conocimiento` calibrates the evidence threshold against the real index.
+
+`evals.escenarios` runs twelve whole calls against the live model — a quiet
+call, questions from the discharge plan, questions outside it, an infected
+wound, chest pain, suicidal ideation, prompt manipulation, Colombian slang,
+false alarms, unpunctuated phone speech, a symptom split across two turns and a
+medication outside the plan — and reads every answer for what code can check:
+the route taken, the citation, invented numbers, promises Vera can't keep.
 
 ## Run it
 
