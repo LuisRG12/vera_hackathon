@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 from server.config import settings
-from server.voz.tts import FrasesFijas, VozCartesia
+from server.voz.tts import CACHE, FrasesFijas, VozCartesia
 
 PASS, FAIL = "  [OK]", "  [FALLA]"
 resultados: list[bool] = []
@@ -67,6 +67,14 @@ async def todo(turno, espera: float = 1.0) -> list[bytes]:
 
 
 async def mentira() -> None:
+    print("\n== Cada frase fija tiene su audio en el repositorio ==")
+    # Si falta, el Space la sintetiza en cada arranque y gasta el plan de
+    # Cartesia. Se arregla con `scripts/frases.py` y un commit.
+    from server.main import FRASES_FIJAS
+    faltan = [t[:40] for t in FRASES_FIJAS
+              if not (CACHE / f"{FrasesFijas.clave(t)}.pcm").exists()]
+    check(f"las {len(FRASES_FIJAS)} frases fijas tienen audio", not faltan, str(faltan))
+
     falso = CartesiaDeMentira()
 
     async def conectar():

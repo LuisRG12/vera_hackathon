@@ -41,7 +41,14 @@ from server.config import settings
 
 URL_WS = "wss://api.cartesia.ai/tts/websocket"
 URL_BYTES = "https://api.cartesia.ai/tts/bytes"
-CACHE = Path(__file__).resolve().parents[2] / "voces" / "cache"
+# El audio de las frases fijas va en el repositorio, no en una caché de disco.
+# El disco del Space es efímero: cada despliegue y cada reinicio las volvía a
+# sintetizar todas, unos 2.700 caracteres del plan de Cartesia cada vez, y el
+# 22-sep el plan gratuito se agotó a mitad de un arranque —seis frases se
+# quedaron sin audio, entre ellas las despedidas tras una alarma—. Lo regenera
+# `scripts/frases.py` cuando cambia un texto; si falta alguna, el servidor la
+# sintetiza al arrancar como antes.
+CACHE = Path(__file__).resolve().parents[2] / "audio" / "frases"
 
 
 class ErrorVoz(RuntimeError):

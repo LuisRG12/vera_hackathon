@@ -17,7 +17,9 @@ __pycache__/
 # Turnos transcritos de llamadas reales (REGISTRO_TURNOS): la voz de alguien
 registros/
 
-# Voces de Piper: artefactos de terceros con licencia propia, se descargan.
+# Voces de Piper (artefactos de terceros con licencia propia, se descargan) y la
+# caché vieja del audio. El audio de las frases fijas sí se versiona, en
+# audio/frases/ (ver server/voz/tts.py).
 voces/
 
 # Notas de trabajo, no van al repo
