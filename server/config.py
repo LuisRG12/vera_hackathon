@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     assemblyai_api_key: str = ""
 
     # El endpoint es v3. La página de transcripción multilingüe muestra un
-    # `api.assemblyai.com/v2/realtime` que responde 404: se comprobó conectando
-    # (ver docs/bitacora.md, 12-sep). Esto no se cambia por lo que diga una doc.
+    # `api.assemblyai.com/v2/realtime` que responde 404: se comprobó conectando.
+    # Esto no se cambia por lo que diga una doc.
     stt_url: str = "wss://streaming.assemblyai.com/v3/ws"
 
     # `universal-3-5-pro` ya es el default del servidor, y aun así se declara.
@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     # La misma clave de AssemblyAI; el gateway exige pago por uso habilitado.
     llm_url: str = "https://llm-gateway.assemblyai.com/v1/chat/completions"
 
-    # Haiku y no Sonnet, medido (ver docs/bitacora.md, 13-sep): el primer token
+    # Haiku y no Sonnet, medido: el primer token
     # llega en 1,4 s contra 2,2 s, y Sonnet por el gateway no acepta salida
     # estructurada. El id va tal como lo lista el gateway, con fecha.
     llm_modelo: str = "claude-haiku-4-5-20251001"

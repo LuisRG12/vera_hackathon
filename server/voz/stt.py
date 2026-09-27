@@ -36,7 +36,7 @@ from server.config import settings
 # AssemblyAI rechaza trozos fuera de [50, 1000] ms y **cierra la conexión** con
 # error 3007. No es un aviso: la llamada se cae. El `AudioWorklet` del navegador
 # entrega bloques de 128 muestras —8 ms a 16 kHz— así que sin acumular aquí, una
-# llamada dura un segundo. Se comprobó midiendo (ver docs/bitacora.md, 12-sep).
+# llamada dura un segundo. Se comprobó midiendo.
 #
 # La acumulación vive en este módulo y no en el navegador a propósito: la regla
 # es de AssemblyAI, así que la conoce quien le habla. Cualquier otro cliente

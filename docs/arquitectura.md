@@ -128,7 +128,7 @@ Lo que se paga: la síntesis deja de ser gratis y deja de ser offline. Lo que se
 compra, además del acento: el primer trozo de audio llega en dos décimas de
 segundo. Y lo que dice el código —el saludo, la emergencia, los respaldos— se
 sintetiza al arrancar y queda guardado, así que suena aunque Cartesia se caiga,
-que es justo cuando más falta hace. Ver la bitácora del 15 al 20 de septiembre.
+que es justo cuando más falta hace.
 
 ### 6. Conocimiento: guías clínicas de libre redistribución
 
@@ -139,8 +139,7 @@ de terceros los redistribuiría bajo una licencia que no es nuestra para otorgar
 Un corpus curado y verificable demuestra mejor que uno grande y opaco: el juez
 puede seguir cada cita hasta su fuente.
 
-Lo que salió de aplicar esa regla (ver `conocimiento/README.md` y la bitácora
-del 20 de septiembre): entran los **temas de salud de MedlinePlus** y las
+Lo que salió de aplicar esa regla (ver `conocimiento/README.md`): entran los **temas de salud de MedlinePlus** y las
 páginas del **NIDDK**, que son obra federal de EE. UU. en español y por tanto de
 dominio público; queda fuera la enciclopedia médica de MedlinePlus, que es de
 A.D.A.M., y quedan fuera las guías de la OPS/OMS, cuyo CC BY-NC-SA se contagiaría

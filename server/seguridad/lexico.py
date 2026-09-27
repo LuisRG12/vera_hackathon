@@ -8,7 +8,7 @@ existen —el juez de riesgo, la consola, el índice de hechos clínicos—.
 
 Durante el reto cambió lo que dependía del reconocedor: el bloque de
 confusiones, re-medido contra AssemblyAI, y las cifras de `fiebre`, que ahora
-llegan en dígitos. Ver `evals/confusiones.py` y docs/bitacora.md.
+llegan en dígitos. Ver `evals/confusiones.py`.
 
 **Qué es y qué NO es.** Esto es *comprensión del habla del paciente*, no
 conocimiento clínico. El contenido clínico —qué umbral, qué signo de alarma,

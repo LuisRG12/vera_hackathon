@@ -82,9 +82,9 @@ Nothing in this repository redistributes copyrighted third-party documents. See
 
 ## Key decisions, and what testing changed
 
-Every decision below was measured, not assumed. The full reasoning — including
-the defects each test uncovered — is in the build log,
-[docs/bitacora.md](docs/bitacora.md) (Spanish).
+Every decision below was measured, not assumed. The reasoning behind each one —
+including the defects each test uncovered — sits next to the code it shaped, and
+the commit history shows the order it happened in.
 
 - **The safety engine runs before the model, on every word.** A deterministic
   engine with a Colombian clinical lexicon reads each partial transcript as the

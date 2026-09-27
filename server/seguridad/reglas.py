@@ -2,8 +2,8 @@
 
 **Procedencia.** Traído de `server/agent/safety_rules.py` en
 [vera_voice_agent](https://github.com/LuisRG12/vera_voice_agent) (agosto 2026,
-commit 1827f0e). Lo que cambió durante el reto está en el historial de git y en
-docs/bitacora.md: la tolerancia al guion que pone el formateo de AssemblyAI.
+commit 1827f0e). Lo que cambió durante el reto está en el historial de git: la
+tolerancia al guion que pone el formateo de AssemblyAI.
 
 Este archivo es el **motor**; el vocabulario está en `lexico.py`. La separación
 existe porque cada llamada real descubre dos o tres formas nuevas de decir lo

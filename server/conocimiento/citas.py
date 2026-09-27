@@ -7,7 +7,7 @@ enumerar los ids reales obligaría a cambiarlo en cada turno, y Claude recompila
 cada esquema nuevo, lo que está medido en ~0,9 s de más en la primera frase.
 
 **Por qué no basta con que el modelo lo declare.** Está medido en este mismo
-proyecto (docs/bitacora.md, 13-sep): cuando el fragmento que responde la pregunta
+proyecto: cuando el fragmento que responde la pregunta
 no está entre los que se le permite citar, el modelo cita los otros —tres de
 tres—. El formato queda perfecto y la cita es falsa. Y aun cuando sí sabe cuál
 usó, a veces lo escribe en el sitio equivocado:
