@@ -234,6 +234,8 @@
   .alerta .cab { font-weight: 800; font-size: 13px; letter-spacing: .04em; }
   .alerta .por { font-size: 14px; margin-top: 2px; }
   .alerta .meta { margin-top: 4px; }
+  .alerta .equipo { margin-top: 8px; font-size: 13px; font-weight: 700; color: var(--verde); }
+  .alerta .equipo.falla { color: var(--suave); font-weight: 600; }
 
   /* ------------------------------------------------------------ conversación */
   .conv-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -471,6 +473,7 @@ const T = {
     por: (c, t) => `por «${c}» en «${t}»`,
     en_parcial: 'saltó mientras la paciente hablaba', al_cerrar: 'saltó al cerrar el turno',
     origen_juez: 'lo vio el juez, que entiende lo que las reglas no', origen_reglas: 'lo decidió el motor determinista, sin modelo',
+    equipo_ok: '✓ Enviado al canal del equipo clínico (Discord)', equipo_falla: 'No se pudo enviar al canal del equipo clínico',
     antes: (s) => `${s} s antes de que cerrara el turno`,
     fin_texto: { limite: 'La conversación llegó a su máximo de demostración.', cierre: 'La paciente cerró la conversación.' },
     riesgos: { none: 'ninguno', low: 'bajo', moderate: 'moderado', high: 'alto', critical: 'crítico' },
@@ -529,6 +532,7 @@ const T = {
     por: (c, t) => `on “${c}” in “${t}”`,
     en_parcial: 'fired while the patient was still speaking', al_cerrar: 'fired when the turn closed',
     origen_juez: 'caught by the risk judge, which understands what the rules miss', origen_reglas: 'decided by the deterministic engine, no model involved',
+    equipo_ok: '✓ Sent to the care team channel (Discord)', equipo_falla: 'Could not reach the care team channel',
     antes: (s) => `${s} s before the turn closed`,
     fin_texto: { limite: 'The conversation reached its demo maximum.', cierre: 'The patient ended the conversation.' },
     riesgos: { none: 'none', low: 'low', moderate: 'moderate', high: 'high', critical: 'critical' },
@@ -856,7 +860,7 @@ function mostrarAlerta(m) {
 
 function pintarAlertas() {
   alertas.textContent = '';
-  for (const { m, antes } of alertasHist) {
+  for (const { m, antes, equipo } of alertasHist) {
     const d = document.createElement('div');
     d.className = 'alerta ' + m.severidad;
     d.innerHTML = ICONO_ALERTA + '<div><div class="cab"></div><div class="por"></div><div class="meta"></div></div>';
@@ -867,6 +871,14 @@ function pintarAlertas() {
       `${t('turno')} ${m.orden} · ${m.en_parcial ? t('en_parcial') : t('al_cerrar')} · ` +
       (m.origen === 'juez' ? t('origen_juez') : t('origen_reglas')) +
       (antes ? ' · ' + T[lang].antes(antes) : '');
+    // Solo cuando el servidor dice que Discord lo recibió: un «enviado» por
+    // haberlo intentado sería la misma promesa que este canal vino a cumplir.
+    if (equipo !== undefined) {
+      const e = document.createElement('div');
+      e.className = 'equipo' + (equipo ? '' : ' falla');
+      e.textContent = t(equipo ? 'equipo_ok' : 'equipo_falla');
+      d.querySelector('.meta').after(e);
+    }
     alertas.prepend(d);
   }
 }
@@ -1048,6 +1060,11 @@ btn.onclick = async () => {
       return;
     }
     if (m.type === 'alerta') { mostrarAlerta(m); return; }
+    if (m.type === 'equipo') {
+      const a = alertasHist.find(x => x.m.orden === m.orden && x.m.concepto === m.concepto);
+      if (a) { a.equipo = m.ok; pintarAlertas(); }
+      return;
+    }
     if (m.type === 'callar') { callar(m.hasta); return; }
     if (m.type === 'descartado') {
       // Se dice, no se calla: un turno que desaparece sin rastro es

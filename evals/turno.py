@@ -35,6 +35,7 @@ from server.dialogo.turno import (
 )
 from server.modelo.llm import LLMError
 from server.seguridad.esquemas import RiskAssessment
+from server.seguridad.reglas import detect_red_flags
 from server.seguridad.respuestas import (
     ACLARAR,
     ACOMPANAR,
@@ -45,7 +46,6 @@ from server.seguridad.respuestas import (
     MEDICAMENTO_AJENO,
     MEDICAMENTO_AJENO_CON_ALARMA,
 )
-from server.seguridad.reglas import detect_red_flags
 
 PASS, FAIL = "  [OK]", "  [FALLA]"
 resultados: list[bool] = []

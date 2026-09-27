@@ -146,6 +146,13 @@ class Settings(BaseSettings):
     # «fiebre», «38»—, que es justo el vocabulario de los signos de alarma.
     min_lexico: int = 2
 
+    # --- Aviso al equipo clínico ---
+    # El webhook de un canal de Discord donde sale cada escalamiento (ver
+    # server/equipo.py). Es un secreto: quien lo tiene escribe en el canal. En el
+    # Space va en Secrets, nunca en Variables. Vacío, la alerta queda solo en la
+    # página, como antes.
+    discord_webhook_url: str = ""
+
     # --- Red de seguridad ---
     # Guarda cada turno cerrado —lo transcrito y lo que el motor vio— en
     # `registros/turnos.jsonl`. Sirve para medir con habla real lo que el

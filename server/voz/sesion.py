@@ -47,6 +47,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from server.config import settings
 from server.dialogo.prompts import DESPEDIDA_FINAL, LIMITE, RETOMAR_SILENCIO, SALUDO, SIN_OIDO
 from server.dialogo.turno import Conversacion, TurnoVera
+from server.equipo import Aviso, AvisosDeLlamada
 from server.limites import Cupo, Presupuesto
 from server.seguridad.reglas import detect_red_flags, max_severity
 from server.seguridad.respuestas import CIERRE_ACOMPANAR, CIERRE_EMERGENCIA, RETOMAR_ACOMPANAR
@@ -130,6 +131,10 @@ class SesionLlamada:
         # Lo último que dijo el paciente, y en qué turno: la alerta del juez
         # tiene que citarlo a él.
         self._dicho, self._orden = "", 0
+        # Cada alerta sale también al canal del equipo (ver server/equipo.py). El
+        # estado de las pruebas no trae canal, y entonces esto no hace nada.
+        self.equipo = AvisosDeLlamada(getattr(estado, "equipo", None), self.llamada)
+        self._avisos: set[asyncio.Task] = set()
 
     # ------------------------------------------------------- envío al cliente
     async def _enviar(self, dato: dict) -> None:
@@ -339,7 +344,7 @@ class SesionLlamada:
         if self._alerta_juez or d.source != "llm" or d.action not in ("escalate", "emergency"):
             return
         self._alerta_juez = True
-        await self._enviar({
+        alerta = {
             "type": "alerta",
             "concepto": "lo vio el juez",
             "severidad": d.risk,
@@ -349,7 +354,33 @@ class SesionLlamada:
             "orden": self._orden,
             "en_parcial": False,
             "origen": "juez",
-        })
+        }
+        await self._enviar(alerta)
+        self._avisar_equipo(alerta)
+
+    def _avisar_equipo(self, alerta: dict) -> None:
+        """Manda la alerta al canal del equipo, sin que la llamada lo espere.
+
+        Discord puede tardar o no contestar, y Vera ya está hablando: el aviso va
+        en segundo plano. Cuando el canal confirma, la página lo marca en la
+        tarjeta de la alerta; si falla, lo dice. Nunca marca «enviado» por haberlo
+        intentado.
+        """
+        if not self.equipo.activo:
+            return
+        tarea = asyncio.create_task(self._aviso_equipo(alerta))
+        self._avisos.add(tarea)
+        tarea.add_done_callback(self._avisos.discard)
+
+    async def _aviso_equipo(self, alerta: dict) -> None:
+        ok = await self.equipo.avisar(Aviso.de_alerta(self.llamada, alerta))
+        if ok is None:
+            return
+        try:
+            await self._enviar({"type": "equipo", "concepto": alerta["concepto"],
+                                "orden": alerta["orden"], "ok": ok})
+        except (WebSocketDisconnect, RuntimeError):
+            pass  # la llamada ya terminó: el aviso salió igual
 
     async def _bajada(self) -> None:
         """Lo que llega del reconocedor: primero se descarta el eco, luego lee la
@@ -370,7 +401,7 @@ class SesionLlamada:
             self._movimiento()
             lectura = self.vigilancia.leer(t.texto, t.orden, t.cerrado)
             for a in lectura.nuevas:
-                await self._enviar({
+                alerta = {
                     "type": "alerta",
                     "concepto": a.senal.concepto,
                     "severidad": a.senal.severidad,
@@ -380,7 +411,9 @@ class SesionLlamada:
                     "orden": a.orden,
                     "en_parcial": a.en_parcial,
                     "origen": "reglas",
-                })
+                }
+                await self._enviar(alerta)
+                self._avisar_equipo(alerta)
             await self._enviar({
                 "type": "oido",
                 "texto": t.texto,

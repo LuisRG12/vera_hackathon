@@ -13,7 +13,9 @@ el cliente habla con nosotros y nosotros con AssemblyAI y con Cartesia.
 """
 from __future__ import annotations
 
+import asyncio
 import time
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -33,7 +35,8 @@ from server.dialogo.prompts import (
     SIN_OIDO,
     SIN_RESPUESTA,
 )
-from server.dialogo.turno import Conversacion
+from server.dialogo.turno import Conversacion, TurnoVera
+from server.equipo import Aviso, AvisosDeLlamada, CanalEquipo
 from server.limites import Cupo, Presupuesto
 from server.modelo.llm import StructuredLLM
 from server.seguridad.lexico import LEXICON
@@ -76,6 +79,8 @@ async def ciclo(app: FastAPI):
     app.state.llm = StructuredLLM()
     app.state.recuperador = _abrir_conocimiento()
     app.state.cupo = Cupo(settings.max_llamadas_simultaneas)
+    # Uno por proceso: el tope de avisos por hora lo comparten todas las llamadas.
+    app.state.equipo = CanalEquipo(settings.discord_webhook_url)
     app.state.fijas = FrasesFijas()
     app.state.fijas_listas = await app.state.fijas.preparar(FRASES_FIJAS) \
         if settings.tts_configurado else {"sin_clave": len(FRASES_FIJAS)}
@@ -146,6 +151,8 @@ async def salud():
         "voz": settings.tts_voz if settings.tts_configurado else None,
         "frases_fijas": app.state.fijas_listas,
         "registro_turnos": settings.registro_turnos,
+        # Si el aviso al equipo sale a un canal; nunca la URL, que es el secreto.
+        "aviso_equipo": app.state.equipo.configurado,
         "conocimiento": _estado_conocimiento(),
         "llamadas": {"en_curso": app.state.cupo.en_curso,
                      "maximo": app.state.cupo.maximo},
@@ -216,6 +223,11 @@ async def texto(ws: WebSocket):
     # Por texto no hay audio que facturar, pero cada turno son dos peticiones
     # al gateway, y una pestaña con un script puede hacer cientos.
     presupuesto = Presupuesto(settings.max_turnos_llamada, settings.max_minutos_llamada * 60)
+    # Por texto también se escala, así que también se avisa. En segundo plano:
+    # esperar a Discord no puede demorar la respuesta.
+    avisos = AvisosDeLlamada(ws.app.state.equipo, uuid.uuid4().hex[:8])
+    pendientes: set[asyncio.Task] = set()
+    orden = 0
     try:
         while True:
             m = await ws.receive_json()
@@ -223,6 +235,7 @@ async def texto(ws: WebSocket):
             if not dicho:
                 continue
             presupuesto.registrar_turno()
+            orden += 1
             if motivo := presupuesto.excedido():
                 await ws.send_json({"type": "speak", "texto": LIMITE})
                 await ws.send_json({"type": "adios", "motivo": motivo})
@@ -233,9 +246,26 @@ async def texto(ws: WebSocket):
                     await ws.send_json({"type": "speak", "texto": dato})
                 else:
                     await ws.send_json({"type": "turno", **turno_json(dato)})
+                    if avisos.activo and (alerta := _alerta_de_turno(dato, dicho, orden)):
+                        tarea = asyncio.create_task(
+                            avisos.avisar(Aviso.de_alerta(avisos.llamada, alerta)))
+                        pendientes.add(tarea)
+                        tarea.add_done_callback(pendientes.discard)
             if conversacion.terminada:
                 await ws.send_json({"type": "adios", "motivo": "cierre"})
                 await ws.close()
                 return
     except WebSocketDisconnect:
         return
+
+
+def _alerta_de_turno(turno: TurnoVera, dicho: str, orden: int) -> dict | None:
+    """La alerta de un turno escrito que escaló, con la forma de las de voz."""
+    d = turno.decision
+    if d.action not in ("escalate", "emergency"):
+        return None
+    return {"concepto": d.rule_flags[0] if d.rule_flags else "lo vio el juez",
+            "severidad": d.risk, "accion": d.action, "texto": dicho,
+            "coincidencia": d.rationale.removeprefix("juez: "),
+            "origen": "reglas" if d.rule_flags else "juez", "en_parcial": False,
+            "orden": orden}
