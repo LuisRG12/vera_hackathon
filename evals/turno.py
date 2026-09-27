@@ -36,6 +36,7 @@ from server.dialogo.turno import (
 from server.modelo.llm import LLMError
 from server.seguridad.esquemas import RiskAssessment
 from server.seguridad.respuestas import (
+    ACLARAR,
     ACOMPANAR,
     CIERRE_ACOMPANAR,
     CIERRE_ALARMA,
@@ -44,6 +45,7 @@ from server.seguridad.respuestas import (
     MEDICAMENTO_AJENO,
     MEDICAMENTO_AJENO_CON_ALARMA,
 )
+from server.seguridad.reglas import detect_red_flags
 
 PASS, FAIL = "  [OK]", "  [FALLA]"
 resultados: list[bool] = []
@@ -136,9 +138,9 @@ class RecuperadorDeMentira:
                           solape_lexico=0)
 
 
-async def turno(conv: Conversacion, texto: str) -> tuple[list[str], object]:
+async def turno(conv: Conversacion, texto: str, oido=()) -> tuple[list[str], object]:
     frases, final = [], None
-    async for tipo, dato in conv.turno(texto):
+    async for tipo, dato in conv.turno(texto, list(oido)):
         if tipo == "speak":
             frases.append(dato)
         else:
@@ -476,6 +478,43 @@ async def main() -> int:
         ("mi hija me dijo que le dijera que estoy bien", False),
     ]:
         check(f"«{texto[:48]}» {'es' if es else 'no es'} pregunta", es_pregunta(texto) == es)
+
+    print("\n== Una alarma que el reconocedor perdió al cerrar el turno ==")
+    # Voz real, 27 de septiembre: la vigilancia vio `critical` en un parcial y
+    # el turno cerrado llegó así, sin ninguna regla. Vera contestó «qué bien».
+    perdido = "Tengo una persona aquí en el pecho que me alaba."
+    oido = detect_red_flags("tengo una presión aquí en el pecho que me ahoga")
+    m = ModeloDeMentira()
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    frases, t = await turno(conv, perdido, oido)
+    check("pide que lo repita, sin pasar por el modelo",
+          frases == [ACLARAR] and m.respuestas_pedidas == 0, str(frases))
+    check("marcado y escrito por el código",
+          t.marca == "aclaracion" and t.redactado_por == "codigo")
+    frases, t = await turno(conv, "tengo una presión aquí en el pecho que me ahoga")
+    check("si lo repite y se entiende, es la emergencia de siempre", frases == [EMERGENCIA],
+          str(frases))
+    m = ModeloDeMentira()
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    await turno(conv, perdido, oido)
+    frases, t = await turno(conv, "Una persona en el pecho, le digo.", oido)
+    check("si se vuelve a perder, se actúa sobre lo que se oyó",
+          frases == [EMERGENCIA] and t.decision.action == "emergency", str(frases))
+    m = ModeloDeMentira()
+    conv = Conversacion(m, recuperador=RecuperadorDeMentira(hay_evidencia=True))
+    await turno(conv, perdido, oido)
+    frases, t = await turno(conv, "No, que estoy bien, solo cansado.")
+    check("si lo que repite no trae alarma, la llamada sigue normal",
+          frases not in ([ACLARAR], [EMERGENCIA]) and m.respuestas_pedidas == 1,
+          str(frases))
+    frases, _ = await turno(conv, perdido, oido)
+    check("y una pérdida más adelante vuelve a pedir que repita", frases == [ACLARAR],
+          str(frases))
+    m = ModeloDeMentira()
+    frases, _ = await turno(Conversacion(m), "me duele el pecho",
+                            detect_red_flags("me duele el pecho y tengo fiebre"))
+    check("una alarma perdida menos grave que la que quedó no pide repetir",
+          frases == [EMERGENCIA], str(frases))
 
     print("\n== Sin conocimiento, la llamada sigue ==")
     m = ModeloDeMentira()

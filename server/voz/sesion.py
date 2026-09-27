@@ -166,12 +166,12 @@ class SesionLlamada:
         async for pcm in turno.audio():
             await self._enviar_audio(n, pcm)
 
-    def _nuevo_turno(self, texto: str) -> None:
+    def _nuevo_turno(self, texto: str, oido: list) -> None:
         # Un turno nuevo del paciente corta lo que Vera estuviera diciendo.
         self._cortar()
-        self._generando = asyncio.create_task(self._emitir_turno(texto))
+        self._generando = asyncio.create_task(self._emitir_turno(texto, oido))
 
-    async def _emitir_turno(self, texto: str) -> None:
+    async def _emitir_turno(self, texto: str, oido: list) -> None:
         """Genera el turno y va mandando cada frase con su audio."""
         self._n += 1
         n = self._n
@@ -208,7 +208,7 @@ class SesionLlamada:
                     await sin_voz(e)
 
         try:
-            async for tipo, dato in self.conversacion.turno(texto):
+            async for tipo, dato in self.conversacion.turno(texto, oido):
                 if tipo != "speak":
                     await self._enviar({"type": "vera", **turno_json(dato)})
                     await self._alertar_juez(dato)
@@ -410,7 +410,7 @@ class SesionLlamada:
             if self.presupuesto.excedido():
                 await self._cerrar_por_limite()
                 return
-            self._nuevo_turno(t.texto)
+            self._nuevo_turno(t.texto, self.vigilancia.oido_en_el_turno(t.orden))
         # El reconocedor se cayó. Vera todavía puede hablar —su voz es otro
         # servicio—, así que lo dice en vez de colgar en silencio, y la llamada
         # termina: seguir abierta sin oír a nadie no es degradarse, es fingir.

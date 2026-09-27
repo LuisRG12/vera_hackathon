@@ -43,7 +43,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from server.seguridad.reglas import ACTION_FOR, detect_red_flags, max_sev, max_severity
+from server.seguridad.reglas import (
+    ACTION_FOR,
+    RuleFlag,
+    detect_red_flags,
+    max_sev,
+    max_severity,
+)
 
 ACCIONES_QUE_ALERTAN = ("escalate", "emergency")
 
@@ -83,9 +89,16 @@ class Vigilancia:
         self.alertas: list[Alerta] = []
         self._alertados: set[str] = set()
         self._riesgo_turno: dict[int, str] = {}
+        # Todo lo que se oyó en cada turno, parciales incluidos, por concepto. Las
+        # alertas no sirven para esto: salen una vez por llamada, y un concepto
+        # que ya alertó antes no quedaría registrado en el turno que lo repite.
+        self._oido_turno: dict[int, dict[str, RuleFlag]] = {}
 
     def leer(self, texto: str, orden: int, cerrado: bool) -> Lectura:
         flags = detect_red_flags(texto)
+        oido = self._oido_turno.setdefault(orden, {})
+        for f in flags:
+            oido.setdefault(f.name, f)
         senales = [Senal(f.name, f.severity, f.match) for f in flags]
         riesgo = max_sev(max_severity(flags), self._riesgo_turno.get(orden, "none"))
         self._riesgo_turno[orden] = riesgo
@@ -99,6 +112,14 @@ class Vigilancia:
             self.alertas.append(alerta)
             lectura.nuevas.append(alerta)
         return lectura
+
+    def oido_en_el_turno(self, orden: int) -> list[RuleFlag]:
+        """Las señales vistas en el turno, en cualquiera de sus versiones.
+
+        La conversación las compara con las del turno cerrado para saber si el
+        reconocedor perdió algo al reescribirlo. Ver `ACLARAR` en respuestas.py.
+        """
+        return list(self._oido_turno.get(orden, {}).values())
 
     def alertas_del_turno(self, orden: int) -> list[Alerta]:
         return [a for a in self.alertas if a.orden == orden]

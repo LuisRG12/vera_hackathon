@@ -38,6 +38,8 @@ def main() -> int:
           [a.senal.concepto for a in p.nuevas] == ["perdida_conciencia"])
     check("y no se retira cuando el cierre reescribe el turno", len(v.alertas) == 1)
     check("el turno cerrado conserva el riesgo del parcial", c.riesgo == "critical", c.riesgo)
+    check("el turno recuerda lo que se oyó en el parcial, aunque el cierre lo perdiera",
+          [f.name for f in v.oido_en_el_turno(9)] == ["perdida_conciencia"])
     check("el riesgo no se arrastra al turno siguiente",
           v.leer("Todo bien, gracias.", orden=10, cerrado=True).riesgo == "none")
 

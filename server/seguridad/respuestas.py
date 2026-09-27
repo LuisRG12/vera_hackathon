@@ -58,6 +58,22 @@ MEDICAMENTO_AJENO_CON_ALARMA = (
     "revisarlo hoy mismo: comuníquese hoy con su equipo."
 )
 
+# Cuando la vigilancia oyó un signo de alarma en un parcial y el turno cerrado lo
+# perdió. Pasó en una llamada: el parcial disparó `critical` y el turno cerrado
+# llegó como «tengo una persona aquí en el pecho que me alaba» —la frase del
+# guion era «una presión aquí en el pecho que me agarra»—; sin ninguna regla en
+# el texto final, Vera contestó «qué bien que lo acompañen».
+#
+# No se dirige a urgencias por lo que dijo un parcial, que a veces es el que se
+# equivoca; tampoco se sigue como si nada. Se pide que lo repita, sin sugerirle
+# el síntoma: preguntarle «¿me dijo que le duele el pecho?» es ponerle palabras
+# a alguien que quizá no dijo eso, y un «sí» por cortesía no aclara nada. Si la
+# segunda vez vuelve a perderse, se actúa sobre lo que se oyó (ver turno.py).
+ACLARAR = (
+    "Perdone, no alcancé a escucharle bien y no quiero entender mal. "
+    "¿Me lo puede repetir un poquito más fuerte?"
+)
+
 
 # ------------------------------------------------------------------------------
 # Cómo termina una llamada según lo que pasó en ella.

@@ -54,8 +54,9 @@ from server.modelo.flujo import SentenceSplitter
 from server.modelo.llm import StructuredLLM
 from server.seguridad.esquemas import RiskAssessment, SafetyDecision
 from server.seguridad.juez import assess_risk, combinar
-from server.seguridad.reglas import detect_red_flags, max_severity
+from server.seguridad.reglas import RuleFlag, detect_red_flags, max_sev, max_severity
 from server.seguridad.respuestas import (
+    ACLARAR,
     ACOMPANAR,
     CIERRE_ACOMPANAR,
     CIERRE_ALARMA,
@@ -165,7 +166,7 @@ class TurnoVera:
     # de cualquier auditoría clínica, y sin el campo habría que deducirla.
     redactado_por: str
     # ok | emergencia | degradado_sin_modelo | respuesta_vacia | sin_evidencia | cierre
-    # | medicamento_ajeno
+    # | medicamento_ajeno | aclaracion
     marca: str = "ok"
     usage: dict = field(default_factory=dict)
     latencia_ms: dict = field(default_factory=dict)
@@ -225,12 +226,33 @@ class Conversacion:
         self.gravedad: str | None = None
         # Si el turno anterior escaló. Ver `OBJETIVO_TRAS_ALARMA`.
         self._alarma_previa = False
+        # Si el turno anterior pidió que repitiera una alarma que se perdió. Ver
+        # `ACLARAR` en respuestas.py: se pide una vez, no dos.
+        self._aclarando = False
 
-    async def turno(self, texto: str):
-        """Genera ("speak", frase) mientras se habla y termina con ("turn", TurnoVera)."""
+    async def turno(self, texto: str, oido: list[RuleFlag] = ()):
+        """Genera ("speak", frase) mientras se habla y termina con ("turn", TurnoVera).
+
+        `oido` son las señales que la vigilancia vio en el turno, parciales
+        incluidos. Por texto no hay parciales, y queda vacío.
+        """
         t0 = time.perf_counter()
         lat: dict = {}
         flags = detect_red_flags(texto)
+        # Lo que el reconocedor perdió al reescribir el turno. Ver `ACLARAR` en
+        # respuestas.py. Solo cuenta si es más grave que lo que quedó en el texto
+        # final: una fiebre perdida junto a un dolor de pecho confirmado no
+        # cambia lo que hay que decir.
+        vistos = {f.name for f in flags}
+        perdidas = [f for f in oido
+                    if f.name not in vistos and f.severity in ("high", "critical")]
+        aclarar = (perdidas and max_sev(max_severity(perdidas), max_severity(flags))
+                   != max_severity(flags))
+        if aclarar and self._aclarando:
+            # Ya se le pidió que lo repitiera y volvió a perderse: se actúa sobre
+            # lo que se oyó. Preguntarle una tercera vez a alguien que quizá no
+            # puede hablar más fuerte es dejarlo sin respuesta.
+            flags, aclarar = flags + perdidas, False
         severidad = max_severity(flags)
         self.agenda.anotar(texto)
 
@@ -245,6 +267,20 @@ class Conversacion:
         juez.add_done_callback(lambda t: t.cancelled() or t.exception())
         dichas: list[str] = []
         self._en_curso = EnCurso(texto, flags, juez, dichas, t0)
+
+        # Se oyó una alarma que el texto final no trae: se pide que lo repita.
+        # La alerta al equipo ya salió desde la vigilancia con el parcial; lo que
+        # falta es saber qué decirle al paciente, y eso no se adivina.
+        if aclarar:
+            lat["primera_frase_ms"] = _ms(t0)
+            dichas.append(ACLARAR)
+            yield "speak", ACLARAR
+            ra, uso = await _esperar(juez)
+            cerrado = self._cerrar(texto, flags, ra, ACLARAR, "codigo", "aclaracion",
+                                   uso, lat, t0)
+            self._aclarando = True
+            yield "turn", cerrado
+            return
 
         # Emergencia: la escribe el código. Ver server/seguridad/respuestas.py
         # por qué ante un crítico no se deja al modelo elegir las palabras.
@@ -492,6 +528,7 @@ class Conversacion:
             self.historial.append({"role": "assistant", "content": utterance})
         self.historial = self.historial[-2 * INTERCAMBIOS:]
         self._en_curso = None
+        self._aclarando = False
         decision = combinar(flags, ra)
         self._previo = None if decision.risk in ("high", "critical") else texto
         self._anotar_gravedad(flags, decision)

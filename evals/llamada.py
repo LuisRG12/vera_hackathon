@@ -22,7 +22,12 @@ from evals.turno import ModeloDeMentira
 from evals.voz import CartesiaDeMentira
 from server.dialogo.prompts import DESPEDIDA_FINAL, RETOMAR_SILENCIO, SALUDO
 from server.limites import Cupo
-from server.seguridad.respuestas import CIERRE_ACOMPANAR, CIERRE_EMERGENCIA, RETOMAR_ACOMPANAR
+from server.seguridad.respuestas import (
+    ACLARAR,
+    CIERRE_ACOMPANAR,
+    CIERRE_EMERGENCIA,
+    RETOMAR_ACOMPANAR,
+)
 from server.voz.sesion import SesionLlamada
 from server.voz.stt import Turno
 from server.voz.tts import FrasesFijas, VozCartesia
@@ -239,6 +244,19 @@ async def main() -> int:
     sesion._movimiento()
     check("lo que dice el paciente sí", sesion._retomes == 0)
 
+    print("\n== Una alarma que solo se oyó en el parcial ==")
+    # Voz real, 27 de septiembre: el parcial la oyó y el turno cerrado la perdió.
+    sesion, ws, oido = await montar(ModeloDeMentira())
+    oido.oye("tengo una presión aquí en el pecho que me ahoga", orden=4, cerrado=False)
+    oido.oye("Tengo una persona aquí en el pecho que me alaba.", orden=4)
+    await asyncio.sleep(0.1)
+    check("la alerta sale desde el parcial",
+          sorted(m["concepto"] for m in ws.de_tipo("alerta"))
+          == ["dificultad_respiratoria", "dolor_toracico"],
+          str([m["concepto"] for m in ws.de_tipo("alerta")]))
+    check("y Vera pide que lo repita en vez de seguir como si nada",
+          ACLARAR in [m["texto"] for m in ws.de_tipo("frase")],
+          str([m["texto"] for m in ws.de_tipo("frase")]))
     ok = sum(resultados)
     print(f"\nRESULTADO: {ok}/{len(resultados)} comprobaciones de la llamada.")
     return 0 if ok == len(resultados) else 1

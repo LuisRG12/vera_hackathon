@@ -38,6 +38,7 @@ from server.limites import Cupo, Presupuesto
 from server.modelo.llm import StructuredLLM
 from server.seguridad.lexico import LEXICON
 from server.seguridad.respuestas import (
+    ACLARAR,
     ACOMPANAR,
     CIERRE_ACOMPANAR,
     CIERRE_ALARMA,
@@ -64,7 +65,7 @@ FRASES_FIJAS = [SALUDO, EMERGENCIA, ACOMPANAR, DEGRADADO, DEGRADADO_CON_ALARMA,
                 SIN_RESPUESTA, RETOMAR_SILENCIO, DESPEDIDA_FINAL, SIN_OIDO,
                 SIN_INFORMACION, LIMITE, CIERRE, CIERRE_ALARMA, CIERRE_EMERGENCIA,
                 RETOMAR_ACOMPANAR, CIERRE_ACOMPANAR, MEDICAMENTO_AJENO,
-                MEDICAMENTO_AJENO_CON_ALARMA]
+                MEDICAMENTO_AJENO_CON_ALARMA, ACLARAR]
 
 
 @asynccontextmanager
