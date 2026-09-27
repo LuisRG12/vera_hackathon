@@ -95,8 +95,8 @@ the commit history shows the order it happened in.
   emergency is never worded by the model: that response is written by code and
   starts playing within milliseconds.
 - **The alert leaves the call.** Every escalation is also posted to the care
-  team's channel — a Discord webhook in this demo — with what the patient said
-  and which layer caught it. The page marks an alert as sent only when Discord
+  team's channel — a Slack channel in this demo — with what the patient said
+  and which layer caught it. The page marks an alert as sent only when Slack
   confirms it: one alert per signal per call, an hourly cap, and no mentions,
   because the text comes from whoever is on the line.
 - **A citation is derived by code, not declared by the model.** Structured
@@ -132,7 +132,7 @@ the commit history shows the order it happened in.
 Deterministic harnesses, no network, run in seconds:
 `uv run python -m evals.<name>` for `turno` (92 checks), `llamada` (31), `citas`
 (18), `lexico_colombiano` (139), `confusiones` (128), `decision_seguridad` (24),
-`eco` (27), `equipo` (22), `voz` (17), `limites` (11) and `vigilancia` (10).
+`eco` (27), `equipo` (30), `voz` (17), `limites` (11) and `vigilancia` (10).
 `evals.conocimiento` calibrates the evidence threshold against the real index.
 
 `evals.escenarios` runs twelve whole calls against the live model — a quiet

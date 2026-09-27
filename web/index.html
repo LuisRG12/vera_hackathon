@@ -473,7 +473,7 @@ const T = {
     por: (c, t) => `por «${c}» en «${t}»`,
     en_parcial: 'saltó mientras la paciente hablaba', al_cerrar: 'saltó al cerrar el turno',
     origen_juez: 'lo vio el juez, que entiende lo que las reglas no', origen_reglas: 'lo decidió el motor determinista, sin modelo',
-    equipo_ok: '✓ Enviado al canal del equipo clínico (Discord)', equipo_falla: 'No se pudo enviar al canal del equipo clínico',
+    equipo_ok: c => `✓ Enviado al canal del equipo clínico (${c})`, equipo_falla: c => `No se pudo enviar al canal del equipo clínico (${c})`,
     antes: (s) => `${s} s antes de que cerrara el turno`,
     fin_texto: { limite: 'La conversación llegó a su máximo de demostración.', cierre: 'La paciente cerró la conversación.' },
     riesgos: { none: 'ninguno', low: 'bajo', moderate: 'moderado', high: 'alto', critical: 'crítico' },
@@ -532,7 +532,7 @@ const T = {
     por: (c, t) => `on “${c}” in “${t}”`,
     en_parcial: 'fired while the patient was still speaking', al_cerrar: 'fired when the turn closed',
     origen_juez: 'caught by the risk judge, which understands what the rules miss', origen_reglas: 'decided by the deterministic engine, no model involved',
-    equipo_ok: '✓ Sent to the care team channel (Discord)', equipo_falla: 'Could not reach the care team channel',
+    equipo_ok: c => `✓ Sent to the care team channel (${c})`, equipo_falla: c => `Could not reach the care team channel (${c})`,
     antes: (s) => `${s} s before the turn closed`,
     fin_texto: { limite: 'The conversation reached its demo maximum.', cierre: 'The patient ended the conversation.' },
     riesgos: { none: 'none', low: 'low', moderate: 'moderate', high: 'high', critical: 'critical' },
@@ -860,7 +860,7 @@ function mostrarAlerta(m) {
 
 function pintarAlertas() {
   alertas.textContent = '';
-  for (const { m, antes, equipo } of alertasHist) {
+  for (const { m, antes, equipo, canal } of alertasHist) {
     const d = document.createElement('div');
     d.className = 'alerta ' + m.severidad;
     d.innerHTML = ICONO_ALERTA + '<div><div class="cab"></div><div class="por"></div><div class="meta"></div></div>';
@@ -876,7 +876,7 @@ function pintarAlertas() {
     if (equipo !== undefined) {
       const e = document.createElement('div');
       e.className = 'equipo' + (equipo ? '' : ' falla');
-      e.textContent = t(equipo ? 'equipo_ok' : 'equipo_falla');
+      e.textContent = T[lang][equipo ? 'equipo_ok' : 'equipo_falla'](canal || '');
       d.querySelector('.meta').after(e);
     }
     alertas.prepend(d);
@@ -1062,7 +1062,7 @@ btn.onclick = async () => {
     if (m.type === 'alerta') { mostrarAlerta(m); return; }
     if (m.type === 'equipo') {
       const a = alertasHist.find(x => x.m.orden === m.orden && x.m.concepto === m.concepto);
-      if (a) { a.equipo = m.ok; pintarAlertas(); }
+      if (a) { a.equipo = m.ok; a.canal = m.canal; pintarAlertas(); }
       return;
     }
     if (m.type === 'callar') { callar(m.hasta); return; }

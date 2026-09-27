@@ -80,7 +80,7 @@ async def ciclo(app: FastAPI):
     app.state.recuperador = _abrir_conocimiento()
     app.state.cupo = Cupo(settings.max_llamadas_simultaneas)
     # Uno por proceso: el tope de avisos por hora lo comparten todas las llamadas.
-    app.state.equipo = CanalEquipo(settings.discord_webhook_url)
+    app.state.equipo = CanalEquipo(settings.webhook_equipo)
     app.state.fijas = FrasesFijas()
     app.state.fijas_listas = await app.state.fijas.preparar(FRASES_FIJAS) \
         if settings.tts_configurado else {"sin_clave": len(FRASES_FIJAS)}
@@ -152,7 +152,7 @@ async def salud():
         "frases_fijas": app.state.fijas_listas,
         "registro_turnos": settings.registro_turnos,
         # Si el aviso al equipo sale a un canal; nunca la URL, que es el secreto.
-        "aviso_equipo": app.state.equipo.configurado,
+        "aviso_equipo": app.state.equipo.nombre if app.state.equipo.configurado else None,
         "conocimiento": _estado_conocimiento(),
         "llamadas": {"en_curso": app.state.cupo.en_curso,
                      "maximo": app.state.cupo.maximo},
@@ -170,32 +170,6 @@ def _estado_conocimiento() -> dict:
         "embeddings": rec.indice.modelo,
         "umbral": settings.min_evidencia,
     }
-
-
-@app.get("/diagnostico/red")
-async def diagnostico_red():
-    """TEMPORAL: a qué hosts llega el Space. El aviso a Discord da ConnectTimeout."""
-    import socket
-
-    async def probar(host: str) -> dict:
-        t0 = time.perf_counter()
-        try:
-            ips = sorted({a[4][0] for a in await asyncio.get_running_loop().getaddrinfo(
-                host, 443, type=socket.SOCK_STREAM)})[:3]
-        except OSError as exc:
-            return {"host": host, "dns": f"falla: {type(exc).__name__}"}
-        try:
-            _, w = await asyncio.wait_for(asyncio.open_connection(host, 443, ssl=True), 5)
-            w.close()
-            estado = "ok"
-        except Exception as exc:  # noqa: BLE001 — es un diagnóstico
-            estado = type(exc).__name__
-        return {"host": host, "ips": ips, "tcp_tls": estado,
-                "ms": round((time.perf_counter() - t0) * 1000)}
-
-    hosts = ["discord.com", "discordapp.com", "hooks.slack.com", "ntfy.sh",
-             "api.telegram.org", "cloudflare.com", "vercel.com", "api.assemblyai.com"]
-    return JSONResponse(await asyncio.gather(*(probar(h) for h in hosts)))
 
 
 @app.get("/documentos/{archivo}")

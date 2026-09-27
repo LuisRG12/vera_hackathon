@@ -378,7 +378,8 @@ class SesionLlamada:
             return
         try:
             await self._enviar({"type": "equipo", "concepto": alerta["concepto"],
-                                "orden": alerta["orden"], "ok": ok})
+                                "orden": alerta["orden"], "ok": ok,
+                                "canal": self.equipo.canal})
         except (WebSocketDisconnect, RuntimeError):
             pass  # la llamada ya terminó: el aviso salió igual
 

@@ -12,7 +12,14 @@ from __future__ import annotations
 import asyncio
 import sys
 
-from server.equipo import MAX_TEXTO, Aviso, AvisosDeLlamada, CanalEquipo, mensaje
+from server.equipo import (
+    MAX_TEXTO,
+    Aviso,
+    AvisosDeLlamada,
+    CanalEquipo,
+    mensaje_discord,
+    mensaje_slack,
+)
 
 resultados: list[bool] = []
 PASS, FAIL = "  [OK]", "  [FALLA]"
@@ -50,14 +57,14 @@ async def main() -> None:
     check("sin canal (las pruebas de la llamada) tampoco",
           not AvisosDeLlamada(None, "abc123").activo)
 
-    print("\n== El mensaje ==")
-    m = mensaje(aviso(texto="@everyone me duele el pecho " + "x" * 600))
+    print("\n== El mensaje a Discord ==")
+    m = mensaje_discord(aviso(texto="@everyone me duele el pecho " + "x" * 600))
     e = m["embeds"][0]
     check("ninguna mención notifica a nadie", m["allowed_mentions"] == {"parse": []})
     check("lo dicho se recorta", len(e["description"]) <= MAX_TEXTO + 2, str(len(e["description"])))
     check("la emergencia se titula como tal", e["title"].startswith("🚨 EMERGENCIA"), e["title"])
     check("y en rojo", e["color"] == 0xF43F5E)
-    alta = mensaje(aviso("fiebre", "high"))["embeds"][0]
+    alta = mensaje_discord(aviso("fiebre", "high"))["embeds"][0]
     check("una alarma de hoy no se titula emergencia", alta["title"].startswith("⚠️ Revisar hoy"),
           alta["title"])
     check("el concepto se lee como palabras", "Dolor toracico" in e["title"], e["title"])
@@ -65,8 +72,33 @@ async def main() -> None:
     check("dice quién lo detectó y cuándo",
           campos["Lo detectó"] == "las reglas, mientras el paciente hablaba", campos["Lo detectó"])
     check("dice que la paciente es de demostración", "ficticio" in campos["Paciente"])
-    juez = {f["name"]: f["value"] for f in mensaje(aviso(origen="juez"))["embeds"][0]["fields"]}
+    juez = {f["name"]: f["value"]
+            for f in mensaje_discord(aviso(origen="juez"))["embeds"][0]["fields"]}
     check("el juez se nombra como el juez", juez["Lo detectó"] == "el juez de riesgo")
+
+    print("\n== El mensaje a Slack ==")
+    m = mensaje_slack(aviso(texto="<!channel> <@U123> me duele el pecho " + "x" * 600))
+    bloques = m["attachments"][0]["blocks"]
+    textos = [b["text"] for b in bloques if "text" in b]
+    textos += [f for b in bloques for f in b.get("fields", [])]
+    textos += [e for b in bloques for e in b.get("elements", [])]
+    check("todo va en texto plano: una mención dictada no notifica",
+          all(x["type"] == "plain_text" for x in textos), str({x["type"] for x in textos}))
+    check("la notificación lleva el título", m["text"].startswith("🚨 EMERGENCIA"), m["text"][:40])
+    check("lo dicho se recorta", len(bloques[1]["text"]["text"]) <= MAX_TEXTO + 2)
+    check("la barra de la emergencia es roja", m["attachments"][0]["color"] == "#F43F5E")
+    check("la de una alarma de hoy, naranja",
+          mensaje_slack(aviso("fiebre", "high"))["attachments"][0]["color"] == "#FB923C")
+
+    print("\n== El formato lo elige la URL ==")
+    check("hooks.slack.com es Slack",
+          CanalEquipo("https://hooks.slack.com/services/T/B/x").nombre == "Slack")
+    check("discord.com es Discord",
+          CanalEquipo("https://discord.com/api/webhooks/1/x").nombre == "Discord")
+    d = DiscordDeMentira()
+    await AvisosDeLlamada(CanalEquipo("https://hooks.slack.com/services/T/B/x", enviar=d),
+                          "s1").avisar(aviso())
+    check("a Slack le llega el formato de Slack", "attachments" in d.recibidos[0])
 
     print("\n== Una señal, un aviso por llamada ==")
     d = DiscordDeMentira()

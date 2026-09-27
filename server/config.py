@@ -147,11 +147,17 @@ class Settings(BaseSettings):
     min_lexico: int = 2
 
     # --- Aviso al equipo clínico ---
-    # El webhook de un canal de Discord donde sale cada escalamiento (ver
-    # server/equipo.py). Es un secreto: quien lo tiene escribe en el canal. En el
-    # Space va en Secrets, nunca en Variables. Vacío, la alerta queda solo en la
-    # página, como antes.
+    # El webhook del canal donde sale cada escalamiento (ver server/equipo.py).
+    # Es un secreto: quien lo tiene escribe en el canal. En el Space va en
+    # Secrets, nunca en Variables. Si están los dos, manda Slack: desde el Space,
+    # Hugging Face no deja salir conexiones a discord.com. Vacíos, la alerta queda
+    # solo en la página, como antes.
+    slack_webhook_url: str = ""
     discord_webhook_url: str = ""
+
+    @property
+    def webhook_equipo(self) -> str:
+        return self.slack_webhook_url or self.discord_webhook_url
 
     # --- Red de seguridad ---
     # Guarda cada turno cerrado —lo transcrito y lo que el motor vio— en
