@@ -71,14 +71,23 @@ indicador del Banco Mundial le da 27.385 procedimientos por cada 100.000
 habitantes en 2015, aunque cuenta procedimientos menores que no necesitan este
 seguimiento.
 
-## Por qué ahora, y por qué en español
+## Competencia
 
-Los agentes de voz ya existen en inglés. Lo que no existe es uno que entienda
-cómo habla un paciente colombiano por teléfono —«calentura», «maluca», «me dio
-un yeyo»— y que no deje la seguridad en manos del modelo. Esas dos cosas son el
-núcleo de Vera y no se compran hechas: el léxico clínico colombiano, sus arneses
-y la calibración contra un corpus en español son el trabajo que está en este
-repositorio.
+| Quién | Cómo hace el seguimiento | Fortaleza y límite |
+|---|---|---|
+| La enfermera por teléfono | Voz, un paciente a la vez | Criterio humano; nunca alcanzan las horas para todos |
+| Chatbots hospitalarios (Sofía, de Clínicas Colsanitas, 2025) | Texto, un contacto tras el egreso | Solo llega a quien lee y escribe |
+| Hippocratic AI | Voz, en inglés y español, para hospitales de EE. UU. | Prueba que los hospitales pagan por esto; su seguridad descansa en modelos que supervisan al modelo |
+| **Vera** | **Voz, en español colombiano** | **Seguridad determinista antes de cualquier modelo; respuestas citadas del plan del paciente; precio pensado para América Latina** |
+
+El competidor más cercano, Hippocratic AI, ya hace llamadas de seguimiento tras
+el egreso para hospitales de Estados Unidos, también en español: el mercado
+existe y paga. Lo que no existe es uno hecho para cómo habla un paciente
+colombiano por teléfono —«calentura», «maluca», «me dio un yeyo»— y que no deje
+la seguridad en manos de un modelo, ni siquiera de uno que supervisa a otro. Esas
+dos cosas son el núcleo de Vera y no se compran hechas: el léxico clínico
+colombiano, sus arneses y la calibración contra un corpus en español son el
+trabajo que está en este repositorio.
 
 ## Lo que falta para venderlo
 
@@ -102,6 +111,10 @@ repositorio.
 - Meara JG et al. *Global Surgery 2030*. The Lancet, 2015.
 - Bahr SJ et al. *Integrated Literature Review of Postdischarge Telephone Calls*.
   Western Journal of Nursing Research, 2014. https://doi.org/10.1177/0193945913491016
+- Hippocratic AI: https://hippocraticai.com, y su despliegue en WellSpan, en inglés
+  y español (2024): https://www.wellspan.org/articles/2024/09/web---hippocratic-ai-launch
+- Sofía, módulo de seguimiento post egreso de Clínicas Colsanitas (junio de
+  2025): https://clinicauniversitariacolombia.com/al-dia-con-tu-salud/noticias-de-interes/un-paso-mas-hacia-la-transformacion-digital-y-la-atencion
 - Precios: AssemblyAI (https://www.assemblyai.com/pricing y la tabla de modelos
   del LLM Gateway) y el plan Pro de Cartesia (100.000 créditos por USD 5, un
   crédito por carácter).
