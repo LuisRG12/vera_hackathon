@@ -414,11 +414,20 @@ class SesionLlamada:
         # El reconocedor se cayó. Vera todavía puede hablar —su voz es otro
         # servicio—, así que lo dice en vez de colgar en silencio, y la llamada
         # termina: seguir abierta sin oír a nadie no es degradarse, es fingir.
-        if self.stt.error:
-            await self._enviar({"type": "error", "detalle": self.stt.error})
-            self._n += 1
-            await self._decir_fija(SIN_OIDO, self._n)
-            await asyncio.sleep(len(SIN_OIDO) * 0.06)  # que alcance a sonar
+        #
+        # **También si cerró limpio.** Aquí solo se llega cuando AssemblyAI
+        # terminó la sesión: el servidor cierra el reconocedor después de
+        # cancelar esta tarea, no antes. Antes solo se avisaba con error, y un
+        # cierre limpio —un `Termination` del servicio— dejó una llamada muda a
+        # mitad de conversación, justo después de un turno con riesgo crítico.
+        #
+        # Primero la frase y después `adios`, no `error`: la página, ante un
+        # `error`, cuelga y calla el audio en cola, así que la frase que lo
+        # explicaba no llegaba a sonar nunca. Con `adios` la deja terminar.
+        self._n += 1
+        await self._decir_fija(SIN_OIDO, self._n)
+        await self._enviar({"type": "adios",
+                            "detalle": self.stt.error or "el reconocedor de voz cerró la sesión"})
 
     async def _subida(self) -> None:
         """Lo que manda el navegador: audio del micrófono y avisos de reproducción."""

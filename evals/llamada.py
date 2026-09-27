@@ -20,7 +20,7 @@ from types import SimpleNamespace
 import server.voz.sesion as sesion_mod
 from evals.turno import ModeloDeMentira
 from evals.voz import CartesiaDeMentira
-from server.dialogo.prompts import DESPEDIDA_FINAL, RETOMAR_SILENCIO, SALUDO
+from server.dialogo.prompts import DESPEDIDA_FINAL, RETOMAR_SILENCIO, SALUDO, SIN_OIDO
 from server.limites import Cupo
 from server.seguridad.respuestas import (
     ACLARAR,
@@ -257,6 +257,17 @@ async def main() -> int:
     check("y Vera pide que lo repita en vez de seguir como si nada",
           ACLARAR in [m["texto"] for m in ws.de_tipo("frase")],
           str([m["texto"] for m in ws.de_tipo("frase")]))
+
+    print("\n== El reconocedor cierra la sesión sin error ==")
+    sesion, ws, oido = await montar(ModeloDeMentira())
+    oido.cola.put_nowait(None)
+    await asyncio.sleep(0.1)
+    check("Vera dice que dejó de oír, en vez de quedarse muda",
+          [m["texto"] for m in ws.de_tipo("frase")][-1:] == [SIN_OIDO])
+    check("y se despide con `adios`, que deja sonar la frase; `error` la callaba",
+          len(ws.de_tipo("adios")) == 1 and not ws.de_tipo("error"),
+          str([m["type"] for m in ws.enviados]))
+
     ok = sum(resultados)
     print(f"\nRESULTADO: {ok}/{len(resultados)} comprobaciones de la llamada.")
     return 0 if ok == len(resultados) else 1
