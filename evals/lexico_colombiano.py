@@ -35,6 +35,9 @@ POSITIVOS = [
     ("me quedo sin aire con solo caminar", "dificultad_respiratoria", "critical"),
     ("me fatigo al caminar hasta el baño", "dificultad_respiratoria", "critical"),
     ("siento que me asfixio", "dificultad_respiratoria", "critical"),
+    ("es que me ahoga", "dificultad_respiratoria", "critical"),
+    ("tengo una presión aquí en el pecho que me ahoga", "dificultad_respiratoria", "critical"),
+    ("anoche me ahogaba acostado", "dificultad_respiratoria", "critical"),
     ("me agito mucho al caminar", "dificultad_respiratoria", "critical"),
     ("me cuesta trabajo respirar", "dificultad_respiratoria", "critical"),
 

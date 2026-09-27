@@ -80,6 +80,11 @@ LEXICON: dict[str, dict] = {
             "dificultad para respirar", "dificultad al respirar",
             "falta de aire", "me falta el aire", "no me entra el aire",
             "me ahogo", "ahogad*", "me asfixio", "asfixiad*",
+            # En tercera persona, con el síntoma de sujeto: «una presión en el
+            # pecho que me ahoga», «es que me ahoga», que antes no disparaban.
+            # También atrapa «la angustia me ahoga»; en un posoperatorio, eso se
+            # prefiere escalado a perdido.
+            "me ahoga*",
             "me quedo sin aire", "me agito mucho", "me agito al caminar",
             "respiro con dificultad", "no alcanzo el aire",
             # Colombia: "fatiga" referida al esfuerzo respiratorio.
