@@ -172,6 +172,32 @@ def _estado_conocimiento() -> dict:
     }
 
 
+@app.get("/diagnostico/red")
+async def diagnostico_red():
+    """TEMPORAL: a qué hosts llega el Space. El aviso a Discord da ConnectTimeout."""
+    import socket
+
+    async def probar(host: str) -> dict:
+        t0 = time.perf_counter()
+        try:
+            ips = sorted({a[4][0] for a in await asyncio.get_running_loop().getaddrinfo(
+                host, 443, type=socket.SOCK_STREAM)})[:3]
+        except OSError as exc:
+            return {"host": host, "dns": f"falla: {type(exc).__name__}"}
+        try:
+            _, w = await asyncio.wait_for(asyncio.open_connection(host, 443, ssl=True), 5)
+            w.close()
+            estado = "ok"
+        except Exception as exc:  # noqa: BLE001 — es un diagnóstico
+            estado = type(exc).__name__
+        return {"host": host, "ips": ips, "tcp_tls": estado,
+                "ms": round((time.perf_counter() - t0) * 1000)}
+
+    hosts = ["discord.com", "discordapp.com", "hooks.slack.com", "ntfy.sh",
+             "api.telegram.org", "cloudflare.com", "vercel.com", "api.assemblyai.com"]
+    return JSONResponse(await asyncio.gather(*(probar(h) for h in hosts)))
+
+
 @app.get("/documentos/{archivo}")
 async def documento(archivo: str):
     """El documento citado, tal como se indexó, para seguir una cita hasta su fuente.
