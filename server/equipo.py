@@ -21,6 +21,12 @@ decidió, y si el canal no contesta la llamada sigue igual. Tampoco es el canal
 de un producto —en producción esto es el tablero de la enfermera o su historia
 clínica—: es el más corto que prueba que el aviso sale de la llamada.
 
+**En inglés, salvo lo que dijo el paciente.** El canal lo mira el jurado del
+hackathon, que no lee español, así que los rótulos van en inglés. Lo que dijo el
+paciente va tal cual, en español —es la evidencia clínica y no se reescribe—, con
+la traducción debajo, hecha por el mismo camino que el botón «Translate» de la
+página. Si la traducción falla o tarda, el aviso sale sin ella: nunca espera.
+
 **El Space es público**, así que lo que cualquiera diga en una llamada que escale
 llega al canal. Por eso tres guardas: una alerta por señal en cada llamada (la
 repetida es ruido, y el ruido es lo que hace que el equipo deje de mirar), un
@@ -29,8 +35,10 @@ tope por hora para todo el proceso, y ninguna mención: un «@channel» o un
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from collections import deque
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from urllib.parse import urlparse
@@ -42,8 +50,29 @@ import httpx
 MAX_TEXTO = 300
 
 _COLOR = {"critical": 0xF43F5E, "high": 0xFB923C}
-PACIENTE = "Paciente de demostración (plan ficticio)"
-PIE = "Vera · seguimiento postoperatorio"
+PACIENTE = "Demo patient (fictional discharge plan)"
+PIE = "Vera · post-surgical follow-up"
+# Lo que se espera a la traducción antes de mandar el aviso sin ella.
+ESPERA_TRADUCCION_S = 4.0
+
+# Los nombres en inglés de los 24 conceptos del léxico: la misma tabla que usa
+# la página (web/index.html, `conceptos`), fija y sin modelo.
+CONCEPTOS_EN = {
+    "dificultad_respiratoria": "shortness of breath", "dolor_toracico": "chest pain",
+    "perdida_conciencia": "loss of consciousness", "convulsion": "seizure",
+    "ideacion_suicida": "suicidal ideation", "fiebre": "fever", "infeccion": "infection",
+    "sangrado_masivo": "heavy bleeding", "dehiscencia": "wound opening",
+    "signos_tvp": "signs of DVT", "compromiso_vascular": "impaired circulation",
+    "taquicardia": "racing heart", "dolor_brazo_izquierdo": "left arm pain",
+    "alteracion_mental": "confusion", "preeclampsia": "pre-eclampsia signs",
+    "empeoramiento": "getting worse", "dolor_intenso": "severe pain",
+    "vomito_persistente": "persistent vomiting", "distension_abdominal": "abdominal swelling",
+    "diarrea": "diarrhea", "ictericia": "jaundice", "estado_general_malo": "feeling very unwell",
+    "animo_depresivo": "low mood", "retencion": "urinary retention",
+    "lo vio el juez": "flagged by the risk judge",
+}
+
+Traductor = Callable[[list[str]], Awaitable[list[str]]]
 
 
 @dataclass(frozen=True)
@@ -67,14 +96,25 @@ class Aviso:
 
     @property
     def titulo(self) -> str:
-        grave = "🚨 EMERGENCIA" if self.severidad == "critical" else "⚠️ Revisar hoy"
-        return f"{grave} · {self.concepto.replace('_', ' ').capitalize()}"
+        grave = "🚨 EMERGENCY" if self.severidad == "critical" else "⚠️ Review today"
+        nombre = CONCEPTOS_EN.get(self.concepto, self.concepto.replace("_", " "))
+        return f"{grave} · {nombre[:1].upper()}{nombre[1:]}"
 
     @property
     def detecto(self) -> str:
-        return ("el juez de riesgo" if self.origen == "juez"
-                else "las reglas, mientras el paciente hablaba" if self.en_parcial
-                else "las reglas, al cerrar el turno")
+        return ("the risk judge" if self.origen == "juez"
+                else "the rules, while the patient was still speaking" if self.en_parcial
+                else "the rules, when the turn closed")
+
+
+def _dicho(aviso: Aviso, en: list[str] | None) -> str:
+    texto = f"«{_recortar(aviso.texto, MAX_TEXTO)}»"
+    return f"{texto}\n“{_recortar(en[0], MAX_TEXTO)}”" if en and en[0] else texto
+
+
+def _motivo(aviso: Aviso, en: list[str] | None) -> str:
+    motivo = _recortar(aviso.motivo or "—", 200)
+    return f"{motivo} — {_recortar(en[1], 200)}" if en and len(en) > 1 and en[1] else motivo
 
 
 def _recortar(texto: str, n: int) -> str:
@@ -82,8 +122,8 @@ def _recortar(texto: str, n: int) -> str:
     return texto if len(texto) <= n else texto[: n - 1].rstrip() + "…"
 
 
-def mensaje_discord(aviso: Aviso) -> dict:
-    """El cuerpo que recibe un webhook de Discord."""
+def mensaje_discord(aviso: Aviso, en: list[str] | None = None) -> dict:
+    """El cuerpo que recibe un webhook de Discord. `en`: lo dicho y el porqué, en inglés."""
     return {
         "username": "Vera",
         # Nada de lo que llega aquí notifica a nadie por mención: el texto lo
@@ -91,14 +131,14 @@ def mensaje_discord(aviso: Aviso) -> dict:
         "allowed_mentions": {"parse": []},
         "embeds": [{
             "title": aviso.titulo,
-            "description": f"«{_recortar(aviso.texto, MAX_TEXTO)}»",
+            "description": _dicho(aviso, en),
             "color": _COLOR.get(aviso.severidad, _COLOR["high"]),
             "fields": [
-                {"name": "Por qué", "value": _recortar(aviso.motivo or "—", 200), "inline": False},
-                {"name": "Lo detectó", "value": aviso.detecto, "inline": True},
-                {"name": "Llamada", "value": f"{aviso.llamada} · turno {aviso.orden}",
+                {"name": "Why", "value": _motivo(aviso, en), "inline": False},
+                {"name": "Caught by", "value": aviso.detecto, "inline": True},
+                {"name": "Call", "value": f"{aviso.llamada} · turn {aviso.orden}",
                  "inline": True},
-                {"name": "Paciente", "value": PACIENTE, "inline": False},
+                {"name": "Patient", "value": PACIENTE, "inline": False},
             ],
             "footer": {"text": PIE},
             "timestamp": datetime.now(UTC).isoformat(),
@@ -112,22 +152,22 @@ def _plano(texto: str) -> dict:
     return {"type": "plain_text", "text": texto, "emoji": True}
 
 
-def mensaje_slack(aviso: Aviso) -> dict:
-    """El cuerpo que recibe un Incoming Webhook de Slack."""
-    dicho = f"«{_recortar(aviso.texto, MAX_TEXTO)}»"
+def mensaje_slack(aviso: Aviso, en: list[str] | None = None) -> dict:
+    """El cuerpo de un Incoming Webhook de Slack. `en`: lo dicho y el porqué, en inglés."""
+    dicho = _dicho(aviso, en)
     return {
         # Lo que se ve en la notificación del celular y del escritorio.
-        "text": f"{aviso.titulo} — {dicho}",
+        "text": f"{aviso.titulo} — «{_recortar(aviso.texto, MAX_TEXTO)}»",
         "attachments": [{
             "color": f"#{_COLOR.get(aviso.severidad, _COLOR['high']):06X}",
             "blocks": [
                 {"type": "header", "text": _plano(_recortar(aviso.titulo, 150))},
                 {"type": "section", "text": _plano(dicho)},
                 {"type": "section", "fields": [
-                    _plano(f"Por qué: {_recortar(aviso.motivo or '—', 200)}"),
-                    _plano(f"Lo detectó: {aviso.detecto}"),
-                    _plano(f"Llamada: {aviso.llamada} · turno {aviso.orden}"),
-                    _plano(f"Paciente: {PACIENTE}"),
+                    _plano(f"Why: {_motivo(aviso, en)}"),
+                    _plano(f"Caught by: {aviso.detecto}"),
+                    _plano(f"Call: {aviso.llamada} · turn {aviso.orden}"),
+                    _plano(f"Patient: {PACIENTE}"),
                 ]},
                 {"type": "context", "elements": [_plano(PIE)]},
             ],
@@ -139,8 +179,9 @@ class CanalEquipo:
     """Uno por proceso: el webhook y el tope por hora que comparten las llamadas."""
 
     def __init__(self, url: str, enviar=None, limite_por_hora: int = 30,
-                 reloj=time.monotonic) -> None:
+                 reloj=time.monotonic, traductor: Traductor | None = None) -> None:
         self._url = url.strip()
+        self._traductor = traductor
         host = urlparse(self._url).hostname or ""
         self.nombre = "Slack" if host.endswith("slack.com") else "Discord"
         self._mensaje = mensaje_slack if self.nombre == "Slack" else mensaje_discord
@@ -168,12 +209,23 @@ class CanalEquipo:
             r = await c.post(self._url, json=cuerpo)
         return 200 <= r.status_code < 300
 
+    async def _traducir(self, aviso: Aviso) -> list[str] | None:
+        if self._traductor is None:
+            return None
+        try:
+            return await asyncio.wait_for(
+                self._traductor([aviso.texto, aviso.motivo or ""]), ESPERA_TRADUCCION_S)
+        except Exception as exc:  # noqa: BLE001 — sin traducción, el aviso sale igual
+            print(f"[equipo] aviso sin traducción ({type(exc).__name__})", flush=True)
+            return None
+
     async def publicar(self, aviso: Aviso) -> bool | None:
         """True si el canal lo recibió, False si falló, None si no se intentó."""
         if not self.configurado or not self._hay_cupo():
             return None
+        en = await self._traducir(aviso)
         try:
-            ok = await self._enviar(self._mensaje(aviso))
+            ok = await self._enviar(self._mensaje(aviso, en))
         except Exception as exc:  # noqa: BLE001 — un aviso caído no tumba la llamada
             # Sin la URL en el registro: es el secreto del canal.
             print(f"[equipo] no se pudo avisar a {self.nombre} ({type(exc).__name__})",

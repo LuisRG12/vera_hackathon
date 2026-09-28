@@ -62,19 +62,20 @@ async def main() -> None:
     e = m["embeds"][0]
     check("ninguna mención notifica a nadie", m["allowed_mentions"] == {"parse": []})
     check("lo dicho se recorta", len(e["description"]) <= MAX_TEXTO + 2, str(len(e["description"])))
-    check("la emergencia se titula como tal", e["title"].startswith("🚨 EMERGENCIA"), e["title"])
+    check("la emergencia se titula como tal", e["title"].startswith("🚨 EMERGENCY"), e["title"])
     check("y en rojo", e["color"] == 0xF43F5E)
     alta = mensaje_discord(aviso("fiebre", "high"))["embeds"][0]
-    check("una alarma de hoy no se titula emergencia", alta["title"].startswith("⚠️ Revisar hoy"),
+    check("una alarma de hoy no se titula emergencia", alta["title"].startswith("⚠️ Review today"),
           alta["title"])
-    check("el concepto se lee como palabras", "Dolor toracico" in e["title"], e["title"])
+    check("el concepto va con su nombre en inglés", "Chest pain" in e["title"], e["title"])
     campos = {f["name"]: f["value"] for f in e["fields"]}
     check("dice quién lo detectó y cuándo",
-          campos["Lo detectó"] == "las reglas, mientras el paciente hablaba", campos["Lo detectó"])
-    check("dice que la paciente es de demostración", "ficticio" in campos["Paciente"])
+          campos["Caught by"] == "the rules, while the patient was still speaking",
+          campos["Caught by"])
+    check("dice que la paciente es de demostración", "fictional" in campos["Patient"])
     juez = {f["name"]: f["value"]
             for f in mensaje_discord(aviso(origen="juez"))["embeds"][0]["fields"]}
-    check("el juez se nombra como el juez", juez["Lo detectó"] == "el juez de riesgo")
+    check("el juez se nombra como el juez", juez["Caught by"] == "the risk judge")
 
     print("\n== El mensaje a Slack ==")
     m = mensaje_slack(aviso(texto="<!channel> <@U123> me duele el pecho " + "x" * 600))
@@ -84,7 +85,7 @@ async def main() -> None:
     textos += [e for b in bloques for e in b.get("elements", [])]
     check("todo va en texto plano: una mención dictada no notifica",
           all(x["type"] == "plain_text" for x in textos), str({x["type"] for x in textos}))
-    check("la notificación lleva el título", m["text"].startswith("🚨 EMERGENCIA"), m["text"][:40])
+    check("la notificación lleva el título", m["text"].startswith("🚨 EMERGENCY"), m["text"][:40])
     check("lo dicho se recorta", len(bloques[1]["text"]["text"]) <= MAX_TEXTO + 2)
     check("la barra de la emergencia es roja", m["attachments"][0]["color"] == "#F43F5E")
     check("la de una alarma de hoy, naranja",
@@ -123,6 +124,37 @@ async def main() -> None:
     ahora[0] = 3601.0
     check("una hora después vuelve a salir",
           await AvisosDeLlamada(canal, "l10").avisar(aviso()) is True)
+
+    print("\n== Lo dicho va tal cual, con la traducción debajo ==")
+    async def traduce(lineas):
+        return ["I've got a pressure in my chest", "chest pressure"]
+
+    d = DiscordDeMentira()
+    await AvisosDeLlamada(CanalEquipo("https://hooks.slack.com/services/T/B/x", enviar=d,
+                                      traductor=traduce), "t1").avisar(aviso())
+    bloques = d.recibidos[0]["attachments"][0]["blocks"]
+    dicho = bloques[1]["text"]["text"]
+    check("el español va tal cual", dicho.startswith("«me duele el pecho»"), dicho)
+    check("y la traducción debajo", "“I've got a pressure in my chest”" in dicho, dicho)
+    check("el porqué también se traduce",
+          "chest pressure" in bloques[2]["fields"][0]["text"], bloques[2]["fields"][0]["text"])
+
+    async def falla(lineas):
+        raise RuntimeError("gateway caído")
+
+    async def lenta(lineas):
+        await asyncio.sleep(60)
+
+    for nombre, t in [("una traducción que falla", falla), ("una traducción lenta", lenta)]:
+        d = DiscordDeMentira()
+        canal = CanalEquipo("https://hooks.slack.com/services/T/B/x", enviar=d, traductor=t)
+        if t is lenta:
+            import server.equipo as eq
+            eq.ESPERA_TRADUCCION_S = 0.05
+        ok = await AvisosDeLlamada(canal, "t2").avisar(aviso())
+        check(f"{nombre} no detiene el aviso", ok is True and len(d.recibidos) == 1)
+        check(f"{nombre}: sale sin traducción",
+              "“" not in d.recibidos[0]["attachments"][0]["blocks"][1]["text"]["text"])
 
     print("\n== Un Discord caído no tumba la llamada ==")
     caido = CanalEquipo("https://discord.test/webhook",

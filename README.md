@@ -132,7 +132,7 @@ the commit history shows the order it happened in.
 Deterministic harnesses, no network, run in seconds:
 `uv run python -m evals.<name>` for `turno` (92 checks), `llamada` (31), `citas`
 (18), `lexico_colombiano` (139), `confusiones` (128), `decision_seguridad` (24),
-`eco` (27), `equipo` (30), `voz` (17), `limites` (11) and `vigilancia` (10).
+`eco` (27), `equipo` (37), `voz` (17), `limites` (11) and `vigilancia` (10).
 `evals.conocimiento` calibrates the evidence threshold against the real index.
 
 `evals.escenarios` runs twelve whole calls against the live model — a quiet

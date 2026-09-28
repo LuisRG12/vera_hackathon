@@ -51,6 +51,7 @@ from server.seguridad.respuestas import (
     MEDICAMENTO_AJENO_CON_ALARMA,
     RETOMAR_ACOMPANAR,
 )
+from server.traduccion import traducir
 from server.voz.keyterms import KEYTERMS
 from server.voz.sesion import SesionLlamada, turno_json
 from server.voz.tts import FrasesFijas
@@ -80,7 +81,9 @@ async def ciclo(app: FastAPI):
     app.state.recuperador = _abrir_conocimiento()
     app.state.cupo = Cupo(settings.max_llamadas_simultaneas)
     # Uno por proceso: el tope de avisos por hora lo comparten todas las llamadas.
-    app.state.equipo = CanalEquipo(settings.webhook_equipo)
+    app.state.equipo = CanalEquipo(
+        settings.webhook_equipo,
+        traductor=lambda lineas: traducir(app.state.llm, lineas))
     app.state.fijas = FrasesFijas()
     app.state.fijas_listas = await app.state.fijas.preparar(FRASES_FIJAS) \
         if settings.tts_configurado else {"sin_clave": len(FRASES_FIJAS)}
@@ -198,7 +201,6 @@ async def documento(archivo: str):
 @app.post("/traducir")
 async def traducir_transcripcion(pedido: dict):
     """La transcripción en inglés, a demanda. Ver server/traduccion.py."""
-    from server.traduccion import traducir
     # Sin filtrar las vacías: la respuesta se alinea por posición con lo que
     # hay en pantalla, y quitar una desplazaría todas las traducciones.
     lineas = [str(x) for x in (pedido.get("lineas") or [])]
