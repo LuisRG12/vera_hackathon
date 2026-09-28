@@ -14,6 +14,12 @@ phrases, each labelled with the path it takes. The conversation itself is in
 Spanish on purpose: understanding how a patient in Colombia actually speaks is
 the point.
 
+**Watch the alerts arrive:** every escalation is posted to the care team's
+Slack channel, `#vera_warnings`, in English. [Join the Vera Care Team
+workspace](https://join.slack.com/t/veracareteam/shared_invite/zt-4b18ojlw7-bQxL2hOA3rdD8CRh_V8rvg)
+(the invite link expires on October 27, 2026), then say something alarming to
+Vera — «tengo una presión en el pecho» — and watch the channel.
+
 > **This is not a medical device and does not replace clinical care.** Vera is a
 > follow-up assistant. It never diagnoses, never prescribes, and escalates to a
 > human clinician on any red flag. Every clinical statement it makes is a
