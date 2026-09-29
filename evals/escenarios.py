@@ -164,6 +164,19 @@ ESCENARIOS = [
         # ayudarle, confirme la dosis con su equipo». Ahora lo contesta el código.
         Paso("Me duele mucho la herida, ¿me puedo tomar un ibuprofeno?", ruta="medicamento"),
     ]),
+    Escenario("medicamentos del plan", "se responde con la sección que preguntó, y una "
+              "corrección vuelve a buscar", [
+        # Voz real, 29 de septiembre: a la segunda contestó con la sección
+        # «Alimentación» —comidas livianas, beba líquidos—, y a la tercera, que
+        # para eso necesitaba ver su plan de egreso.
+        Paso("Hola, Vera, ¿sabes cuándo me puedo bañar?", ruta="cita", documento=PLAN),
+        Paso("Está bien. Y con los medicamentos, ¿cómo me los debo tomar?", ruta="cita",
+             documento=PLAN, contiene=[r"acetaminof[eé]n"],
+             no_contiene=[r"comidas?\b|l[ií]quidos"]),
+        Paso("Pero me refería a los medicamentos, no a la comida.", ruta="cita",
+             documento=PLAN, contiene=[r"acetaminof[eé]n"],
+             no_contiene=[r"necesito ver su plan", r"no lo tengo en sus documentos"]),
+    ]),
 ]
 
 # ------------------------------------------------------------ comprobaciones

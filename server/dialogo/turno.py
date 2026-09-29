@@ -38,7 +38,7 @@ from server.conocimiento.citas import derivar, limpiar
 from server.conocimiento.recuperacion import Cita, formatear
 from server.dialogo.agenda import PREGUNTA, PREGUNTA_CIERRE, Agenda, es_cierre
 from server.dialogo.medicamentos import medicamento_ajeno
-from server.dialogo.pregunta import es_pregunta, pide_confirmacion
+from server.dialogo.pregunta import es_correccion, es_pregunta, pide_confirmacion
 from server.dialogo.prompts import (
     CIERRE,
     CON_EVIDENCIA,
@@ -214,6 +214,9 @@ class Conversacion:
         # el doble de tramadol» le dio `critical`, y a «¿me puedo bañar?» tras una
         # fiebre, `high`, ambos por lo dicho antes. Ver evals/juez.py.
         self._previo: str | None = None
+        # La última pregunta del paciente, para buscar con ella si el turno
+        # siguiente la corrige. Ver `es_correccion`.
+        self._pregunta_previa: str | None = None
         # Qué falta preguntar y si ya se preguntó «¿hay algo más?». Ver agenda.py.
         self.agenda = Agenda()
         # Si el paciente cerró la llamada. Quien sostiene la conexión —la sesión
@@ -314,9 +317,16 @@ class Conversacion:
         # El conocimiento, antes del modelo. Va en un hilo porque es CPU —el
         # embedding de la consulta y BM25— y el servidor entero es asíncrono:
         # sin esto, el turno bloquearía el bucle que está reproduciendo audio.
+        #
+        # Una corrección se busca junto con la pregunta que corrige. Sola es una
+        # mala consulta: a «Pero me refería a los medicamentos, no a la comida»
+        # el mejor coseno es 0,815 y no llega a evidencia, así que Vera habría
+        # dicho que eso no está en sus documentos. Con la pregunta delante, 0,851.
         recuperado = None
         if self.rec is not None and (flags or es_pregunta(texto)):
-            recuperado = await asyncio.to_thread(self.rec.consultar, texto)
+            consulta = (f"{self._pregunta_previa} {texto}"
+                        if self._pregunta_previa and es_correccion(texto) else texto)
+            recuperado = await asyncio.to_thread(self.rec.consultar, consulta)
             lat["recuperacion_ms"] = _ms(t0)
         # Se recuperan más de los que ve el modelo: recuperar de más ordena mejor
         # y es barato; mostrar de más son cientos de tokens en la ruta crítica.
@@ -531,6 +541,10 @@ class Conversacion:
         self._aclarando = False
         decision = combinar(flags, ra)
         self._previo = None if decision.risk in ("high", "critical") else texto
+        # Una corrección no reemplaza a la pregunta: si la vuelven a corregir, lo
+        # que se preguntó sigue siendo lo primero.
+        if not es_correccion(texto):
+            self._pregunta_previa = texto if es_pregunta(texto) else None
         self._anotar_gravedad(flags, decision)
         self._alarma_previa = decision.action in ("escalate", "emergency")
         lat["total_ms"] = _ms(t0)

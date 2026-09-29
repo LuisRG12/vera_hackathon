@@ -96,6 +96,23 @@ _CONFIRMACION = re.compile(
     re.I)
 
 
+# El paciente corrige una pregunta que Vera entendió mal, sin forma de pregunta.
+# En una prueba por voz, a «Pero me refería a los medicamentos, no a la comida»
+# no se buscó en los documentos, y Vera, sin su plan delante, contestó que para
+# eso necesitaba ver su plan de egreso. Sin «le pregunté» a secas: «yo le
+# pregunté al doctor y me dijo…» es un relato.
+_CORRECCION = re.compile(
+    r"\bme\s+refer[ií]a\b|\bme\s+refiero\b|\bno\s+(?:le|te)\s+pregunt[ée]\b"
+    r"|\blo\s+que\s+(?:le\s+|te\s+)?(?:pregunt[ée]|estoy\s+preguntando|quer[ií]a\s+saber)\b"
+    r"|\b(?:le|te)\s+estoy\s+preguntando\b",
+    re.I)
+
+
+def es_correccion(texto: str) -> bool:
+    """Corrige la pregunta anterior: «me refería a…», «lo que le pregunté fue…»."""
+    return bool(_CORRECCION.search(texto))
+
+
 def pide_confirmacion(texto: str) -> bool:
     """Pide que Vera le confirme algo, en vez de preguntarlo."""
     return bool(_CONFIRMACION.search(texto.strip()))
@@ -110,4 +127,4 @@ def es_pregunta(texto: str) -> bool:
     t = texto.strip()
     if es_cortesia(t):
         return False
-    return bool(_PREGUNTA.search(t))
+    return bool(_PREGUNTA.search(t)) or es_correccion(t)

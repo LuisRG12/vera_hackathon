@@ -20,6 +20,7 @@ from server.dialogo.agenda import PREGUNTA, PREGUNTA_CIERRE
 from server.dialogo.pregunta import es_pregunta, pide_confirmacion
 from server.dialogo.prompts import (
     CIERRE,
+    CON_EVIDENCIA,
     DEGRADADO,
     DEGRADADO_CON_ALARMA,
     SIN_CONTEXTO,
@@ -111,6 +112,7 @@ class RecuperadorDeMentira:
     def __init__(self, hay_evidencia: bool):
         self.hay_evidencia = hay_evidencia
         self.consultas = 0
+        self.ultima: str | None = None
         self.citas = [
             Cita(Fragmento(0, "plan.md", "Plan de egreso", "Baño",
                            "Puede ducharse a partir del tercer día después de la cirugía."),
@@ -133,6 +135,7 @@ class RecuperadorDeMentira:
 
     def consultar(self, texto: str):
         self.consultas += 1
+        self.ultima = texto
         return Recuperado(citas=list(self.citas), hay_evidencia=self.hay_evidencia,
                           max_denso=0.85 if self.hay_evidencia else 0.79,
                           solape_lexico=0)
@@ -476,8 +479,36 @@ async def main() -> int:
         ("Dígame que no es necesario ir al médico si me duele", True),
         ("bueno, explíqueme lo de las gasas", True),
         ("mi hija me dijo que le dijera que estoy bien", False),
+        # La corrección de una pregunta mal entendida vuelve a buscar.
+        ("Pero me refería a los medicamentos, no a la comida.", True),
+        ("no, lo que le pregunté fue lo de las pastillas", True),
+        ("no le pregunté eso", True),
+        ("yo le pregunté al doctor y me dijo que estaba bien", False),
     ]:
         check(f"«{texto[:48]}» {'es' if es else 'no es'} pregunta", es_pregunta(texto) == es)
+
+    print("\n== Una corrección busca con la pregunta que corrige ==")
+    # Voz real, 29 de septiembre: a los medicamentos Vera contestó con la comida,
+    # y a la corrección, que necesitaba ver su plan de egreso.
+    m = ModeloDeMentira()
+    rec = RecuperadorDeMentira(hay_evidencia=True)
+    conv = Conversacion(m, recuperador=rec)
+    pregunta = "Y con los medicamentos, ¿cómo me los debo tomar?"
+    await turno(conv, pregunta)
+    await turno(conv, "Pero me refería a los medicamentos, no a la comida.")
+    check("busca con la pregunta y la corrección juntas",
+          rec.ultima == f"{pregunta} Pero me refería a los medicamentos, no a la comida.",
+          str(rec.ultima))
+    check("y le pide al modelo que responda con la evidencia",
+          m.respuestas_pedidas == 2 and CON_EVIDENCIA in m.ultimo_prompt)
+    await turno(conv, "no, lo que le pregunté fue cómo me los tomo")
+    check("si la vuelve a corregir, la pregunta sigue siendo la primera",
+          str(rec.ultima).startswith(f"{pregunta} no, lo que"), str(rec.ultima))
+    await turno(conv, "me refiero a eso")
+    await turno(conv, "hoy me siento mejor")
+    await turno(conv, "me refería a que ya no me duele")
+    check("una corrección sin pregunta delante busca sola",
+          rec.ultima == "me refería a que ya no me duele", str(rec.ultima))
 
     print("\n== Una alarma que el reconocedor perdió al cerrar el turno ==")
     # Voz real, 27 de septiembre: la vigilancia vio `critical` en un parcial y
