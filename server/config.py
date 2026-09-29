@@ -131,8 +131,13 @@ class Settings(BaseSettings):
     # fragmento respondió.
     #
     # Remedido cuando el plan del paciente pasó a entrar siempre entre lo que ve el
-    # modelo (ver `Recuperador._mejor_del_plan`): el mismo 0,83 da 18/21
+    # modelo (ver `Recuperador._del_plan`): el mismo 0,83 da 18/21
     # respondidas y sigue en 0 fugas clínicas.
+    #
+    # Y otra vez al entrar el título de la sección al vector, con el arnés
+    # exigiendo la sección del plan y no solo el documento: 22/25 respondidas,
+    # 24/25 con la fuente correcta, 0 fugas clínicas. A 0,82 aparece una.
+    # Sigue 0,83.
     #
     # OJO: el número NO transfiere. Ni entre modelos de embeddings, ni entre
     # corpus, ni siquiera entre versiones de esta misma capa: al dejar de

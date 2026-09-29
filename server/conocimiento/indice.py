@@ -163,6 +163,23 @@ class Indice:
         return indice
 
 
+def _pasaje(f: Fragmento) -> str:
+    """Lo que se embebe de un fragmento: el título de su sección y su cuerpo.
+
+    **El vector lleva el título; la cita, solo el cuerpo.** El título dice de qué
+    trata la sección, y el cuerpo muchas veces no lo repite. Sin él, entre las
+    secciones del plan del paciente, «¿cuándo tengo que ir al hospital?» y aun
+    «¿cuándo tengo que ir a urgencias?» elegían «Cuándo llamar al equipo clínico
+    el mismo día» y no «Cuándo ir a urgencias de inmediato», y a «me duele mucho
+    la herida, ¿qué me tomo?» no entraba «Medicamentos para el dolor». Con el
+    título entran las tres.
+
+    El título no entra en `texto`: ese es el pasaje que se cita, y el equipo
+    clínico lo compara con el documento real.
+    """
+    return f"{f.seccion}. {f.texto}"
+
+
 def construir(embedder) -> Indice:
     """Trocea el corpus declarado, lo embebe y devuelve el índice."""
     from server.conocimiento.troceado import trocear
@@ -187,5 +204,5 @@ def construir(embedder) -> Indice:
                 procedimiento=meta.get("procedimiento"),
                 del_paciente=bool(meta.get("del_paciente"))))
 
-    vectores = np.stack(embedder.fragmentos([f.texto for f in fragmentos]))
+    vectores = np.stack(embedder.fragmentos([_pasaje(f) for f in fragmentos]))
     return Indice(fragmentos, vectores, embedder.nombre, huella_del_corpus())
