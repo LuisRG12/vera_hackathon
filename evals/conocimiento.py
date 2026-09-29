@@ -35,18 +35,29 @@ from server.conocimiento.embeddings import Embedder
 from server.conocimiento.indice import Indice
 from server.conocimiento.recuperacion import Recuperador
 
-# (pregunta, documento que debería respaldarla)
+# (pregunta, fuente que debería respaldarla)
+#
+# **Del plan del paciente se exige la sección, no el documento.** El plan entra
+# siempre entre los que ve el modelo —ver `Recuperador._del_plan`—, así que
+# pedir el documento no medía nada: pasaba igual con la sección equivocada. Y la
+# sección equivocada es un error real, no de citación. En una prueba por voz, a
+# «Y con los medicamentos, ¿cómo me los debo tomar?» entró «Alimentación» —el
+# vector no tenía el título y «tomar» es también beber— y Vera contestó con
+# comidas livianas y líquidos.
+_PLAN = "plan_de_egreso_paciente_demo.md §"
+
 DENTRO = [
-    ("¿cuándo me puedo bañar?", "plan_de_egreso_paciente_demo.md"),
-    ("¿desde cuándo me puedo duchar?", "plan_de_egreso_paciente_demo.md"),
-    ("¿cuándo me quitan los puntos?", "plan_de_egreso_paciente_demo.md"),
-    ("¿cuánto peso puedo cargar?", "plan_de_egreso_paciente_demo.md"),
-    ("¿cada cuánto me tomo la pastilla para el dolor?", "plan_de_egreso_paciente_demo.md"),
-    ("¿puedo manejar?", "plan_de_egreso_paciente_demo.md"),
-    ("¿qué hago si me da fiebre?", "plan_de_egreso_paciente_demo.md"),
-    ("tengo la herida roja y caliente", "plan_de_egreso_paciente_demo.md"),
-    ("¿cuándo tengo que ir a urgencias?", "plan_de_egreso_paciente_demo.md"),
-    ("¿qué puedo comer estos días?", "plan_de_egreso_paciente_demo.md"),
+    ("¿cuándo me puedo bañar?", _PLAN + "Baño"),
+    ("¿desde cuándo me puedo duchar?", _PLAN + "Baño"),
+    ("¿cuándo me quitan los puntos?", _PLAN + "Cuidado de las incisiones"),
+    ("¿cuánto peso puedo cargar?", _PLAN + "Actividad"),
+    ("¿cada cuánto me tomo la pastilla para el dolor?", _PLAN + "Medicamentos para el dolor"),
+    ("¿cómo me tomo los medicamentos?", _PLAN + "Medicamentos para el dolor"),
+    ("¿puedo manejar?", _PLAN + "Actividad"),
+    ("¿qué hago si me da fiebre?", _PLAN + "Cuándo llamar al equipo clínico el mismo día"),
+    ("tengo la herida roja y caliente", _PLAN + "Cuándo llamar al equipo clínico el mismo día"),
+    ("¿cuándo tengo que ir a urgencias?", _PLAN + "Cuándo ir a urgencias de inmediato"),
+    ("¿qué puedo comer estos días?", _PLAN + "Alimentación"),
     ("¿es normal que me dé diarrea desde que me sacaron la vesícula?",
      "calculos_biliares_tratamiento.md"),
     ("¿cuánto me demoro en recuperarme de la operación de la vesícula?",
@@ -70,13 +81,20 @@ DENTRO = [
 # vez de la sección «Baño» del propio plan del paciente, que con la pregunta
 # limpia sale primera. El vocativo y la muletilla diluyen el vector.
 DENTRO_RUIDOSAS = [
-    ("Oiga doctora, ¿y cuándo me puedo bañar?", "plan_de_egreso_paciente_demo.md"),
+    ("Oiga doctora, ¿y cuándo me puedo bañar?", _PLAN + "Baño"),
     ("Ay, y dígame una cosa, ¿cuándo me quitan los puntos?",
-     "plan_de_egreso_paciente_demo.md"),
-    ("Bueno. Ah, y ¿qué hago si me da fiebre?", "plan_de_egreso_paciente_demo.md"),
+     _PLAN + "Cuidado de las incisiones"),
+    ("Bueno. Ah, y ¿qué hago si me da fiebre?",
+     _PLAN + "Cuándo llamar al equipo clínico el mismo día"),
     ("El doctor me dijo que me puedo tomar el doble de las pastillas, ¿cierto?",
-     "plan_de_egreso_paciente_demo.md"),
-    ("Entonces doctora, ¿cuánto peso puedo cargar?", "plan_de_egreso_paciente_demo.md"),
+     _PLAN + "Medicamentos para el dolor"),
+    ("Entonces doctora, ¿cuánto peso puedo cargar?", _PLAN + "Actividad"),
+    ("Está bien. Y con los medicamentos, ¿cómo me los debo tomar?",
+     _PLAN + "Medicamentos para el dolor"),
+    # Las dos que no nombran el título de la sección: las resuelve el título
+    # dentro del vector, no la regla de la sección nombrada.
+    ("me duele mucho la herida, ¿qué me tomo?", _PLAN + "Medicamentos para el dolor"),
+    ("¿cuándo tengo que ir al hospital?", _PLAN + "Cuándo ir a urgencias de inmediato"),
 ]
 
 # Preguntas reales de una llamada que este corpus NO responde, en dos grupos,
@@ -140,6 +158,15 @@ def _medir(rec: Recuperador):
     return dentro, fuera
 
 
+def _acierta(esperado: str, r) -> bool:
+    """La fuente esperada está entre las que ve el modelo: la sección si trae
+    «§», el documento si no."""
+    vistas = r.citas[:settings.k_evidencia]
+    if "§" in esperado:
+        return esperado in [c.referencia for c in vistas]
+    return esperado in [c.fragmento.documento for c in vistas]
+
+
 def _cuenta(dentro, fuera, umbral: float, lexico: int) -> tuple[int, int, int]:
     """(respondidas, rechazos falsos, fugas) con ese par de cortes."""
     def hay(r) -> bool:
@@ -168,17 +195,16 @@ def _detalle(dentro, fuera, umbral: float, lexico: int) -> None:
     print(f"\nCon umbral {umbral:.2f} y léxico >={lexico}\n")
     print("DENTRO DE CORPUS")
     for pregunta, esperado, r in dentro:
-        vistos = [c.fragmento.documento for c in r.citas[:settings.k_evidencia]]
         estado = "responde" if hay(r) else "SE ABSTIENE"
         # La fuente esperada tiene que estar entre las que ve el modelo. Hubo un
         # tiempo en que se exigía que fuera la primera, porque con la correcta en
         # segundo lugar el modelo respondía con una guía general. Desde que el
         # plan del paciente va siempre primero —y las instrucciones dicen que
         # manda— la primera es el plan a propósito, y exigirlo no mediría nada.
-        if esperado in vistos:
+        if _acierta(esperado, r):
             fuente = "fuente ok"
         else:
-            fuente = f"OTRA FUENTE ({vistos[0]})"
+            fuente = f"OTRA FUENTE ({r.citas[0].referencia})"
         print(f"  {r.max_denso:.3f} lex={r.solape_lexico}  {estado:12s} {fuente:28s} {pregunta}")
 
     grupos = (("FUERA DE CORPUS · CLÍNICAS", FUERA_CLINICO),
@@ -215,10 +241,9 @@ def main() -> int:
     ok, rechazos, fugas = _cuenta(dentro, clinicas, settings.min_evidencia,
                                   settings.min_lexico)
     _, _, fugas_admin = _cuenta(dentro, admin, settings.min_evidencia, settings.min_lexico)
-    correctas = sum(1 for _, esperado, r in dentro
-                    if esperado in [c.fragmento.documento for c in r.citas[:settings.k_evidencia]])
+    correctas = sum(1 for _, esperado, r in dentro if _acierta(esperado, r))
     print(f"\nrespondidas {ok}/{len(dentro)} · rechazos falsos {rechazos} · fugas {fugas}")
-    print(f"documento correcto entre los que ve el modelo: {correctas}/{len(dentro)}")
+    print(f"fuente correcta entre las que ve el modelo: {correctas}/{len(dentro)}")
     return 0 if fugas == 0 else 1
 
 
