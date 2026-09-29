@@ -848,6 +848,7 @@ function cerrarTurnoVera(d, m, conJuez) {
     registrar({ after: n => r.el.after(n) }, delJuez);
   }
   conversacion.scrollTop = conversacion.scrollHeight;
+  if (lang === 'en') traducirPendientes(true);
 }
 
 function mostrarAlerta(m) {
@@ -883,11 +884,21 @@ function pintarAlertas() {
   }
 }
 
-traducirBtn.onclick = async () => {
-  const pendientes = lineas.filter(x => !x.traducida);
+// En inglés se traduce sola al cerrar cada turno: una petición por turno con lo
+// del paciente, lo de Vera y la frase del juez. Va **después** de que Vera
+// habló, desde el navegador y no desde el turno, así que no le suma nada a la
+// primera frase; lo que cuesta es una petición más al gateway por turno. El
+// botón queda para reintentar lo que falló, y para quien pasa a inglés a mitad
+// de conversación.
+//
+// `enviada` evita mandar dos veces la misma línea cuando un turno cierra con la
+// traducción del anterior todavía en camino.
+async function traducirPendientes(automatica) {
+  const pendientes = lineas.filter(x => !x.traducida && !x.enviada);
   if (!pendientes.length) return;
+  pendientes.forEach(x => { x.enviada = true; });
   const rotulo = traducirBtn.querySelector('span');
-  traducirBtn.disabled = true;
+  if (!automatica) traducirBtn.disabled = true;
   rotulo.textContent = t('traduciendo');
   try {
     const r = await fetch('/traducir', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -905,12 +916,17 @@ traducirBtn.onclick = async () => {
     rotulo.textContent = t('traducida');
   } catch (e) {
     rotulo.textContent = t('traducir');
-    estado.textContent = t('error') + e.message;
+    // La automática falla en silencio: la conversación sigue, y el botón la
+    // reintenta. La que pidió alguien sí dice por qué no salió.
+    if (!automatica) estado.textContent = t('error') + e.message;
   } finally {
+    pendientes.forEach(x => { x.enviada = false; });
     traducirBtn.disabled = false;
     setTimeout(() => { rotulo.textContent = t('traducir'); }, 1500);
   }
-};
+}
+
+traducirBtn.onclick = () => traducirPendientes(false);
 
 // ------------------------------------------------------------ pestañas
 function mostrarModo(m) {

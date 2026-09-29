@@ -8,9 +8,10 @@ las carreras daría una demo con el diferenciador apagado, y el juez probaría u
 versión peor del producto. Lo que necesita quien evalúa no es hablarle en inglés
 sino entender lo que está viendo.
 
-Por eso esto no toca el motor ni la llamada. Se pide a demanda, con un botón, y
-cuesta una petición al gateway por transcripción, no una por turno: cero
-latencia en la conversación.
+Por eso esto no toca el motor ni la llamada. En la vista en inglés la página lo
+pide sola al cerrar cada turno —una petición al gateway por turno, con las
+líneas de ese turno—, y siempre después de que Vera habló: cero latencia en la
+conversación. El botón queda para reintentar.
 """
 from __future__ import annotations
 
