@@ -111,6 +111,13 @@ def _tok(s: str) -> list[str]:
     return [t for t in re.findall(r"\w+", s.lower()) if t not in _FUNCIONALES]
 
 
+def _raices(texto: str) -> set[str]:
+    """Las palabras de contenido, cortadas a cinco letras: «medicamento» y
+    «medicamentos», «urgencias» y «urgente», «incisión» e «incisiones» se
+    encuentran. Sin más gramática que esa."""
+    return {t[:5] for t in _tok(texto) if len(t) >= 4}
+
+
 def _coseno(mat: np.ndarray, vec: np.ndarray) -> np.ndarray:
     mn = mat / (np.linalg.norm(mat, axis=1, keepdims=True) + 1e-9)
     vn = vec / (np.linalg.norm(vec) + 1e-9)
@@ -149,7 +156,8 @@ def _rangos(puntajes: np.ndarray) -> np.ndarray:
     return rangos
 
 
-def _diversificar(citas: list[Cita], k: int, primero: Cita | None = None) -> list[Cita]:
+def _diversificar(citas: list[Cita], k: int,
+                  del_plan: list[Cita] | None = None) -> list[Cita]:
     """Reordena para que entre los `k` que ve el modelo no se repita documento.
 
     **Un documento largo copa el top-k y esconde a los demás.** Medido sobre este
@@ -168,15 +176,15 @@ def _diversificar(citas: list[Cita], k: int, primero: Cita | None = None) -> lis
     dónde comprobar. Si no hay k documentos distintos, se rellena con los
     mejores que queden: quedarse corto sería peor que repetir.
     """
-    primeros: list[Cita] = []
+    primeros: list[Cita] = list(del_plan or [])
     resto: list[Cita] = []
     vistos: set[str] = set()
     # El plan del paciente va primero, y su documento cuenta como visto: el resto
-    # de lugares es para otras fuentes. Ver `Recuperador._mejor_del_plan`.
-    if primero is not None:
-        primeros.append(primero)
-        vistos.add(primero.fragmento.documento)
-        citas = [c for c in citas if c.fragmento.id != primero.fragmento.id]
+    # de lugares es para otras fuentes. Ver `Recuperador._del_plan`.
+    if del_plan:
+        vistos.add(del_plan[0].fragmento.documento)
+        ya = {c.fragmento.id for c in del_plan}
+        citas = [c for c in citas if c.fragmento.id not in ya]
     for c in citas:
         if len(primeros) < k and c.fragmento.documento not in vistos:
             vistos.add(c.fragmento.documento)
@@ -246,11 +254,12 @@ class Recuperador:
 
         citas = [Cita(fragmentos[i], float(denso[i]), float(disperso[i]), float(rrf[i]))
                  for i in np.argsort(-rrf)[:k]]
-        del_plan = self._mejor_del_plan(denso, disperso, rrf)
+        del_plan = self._del_plan(texto, denso, disperso, rrf)
         return self._veredicto(texto, _diversificar(citas, settings.k_evidencia, del_plan))
 
-    def _mejor_del_plan(self, denso, disperso, rrf) -> Cita | None:
-        """La sección del plan del paciente que mejor responde, por coseno.
+    def _del_plan(self, texto: str, denso, disperso, rrf) -> list[Cita]:
+        """Las secciones del plan del paciente que mejor responden: la mejor por
+        coseno y, si es otra, la mejor de las que el paciente nombró.
 
         **El plan del paciente se consulta siempre.** Es la promesa del producto
         —responder con los documentos de ese paciente— y la batería de escenarios
@@ -269,12 +278,37 @@ class Recuperador:
         Se elige por coseno y no por la fusión porque la fusión es justo lo que
         dejó fuera a «Alimentación»: el término exacto que BM25 premia no está
         cuando el paciente dice «comer» y el plan, «comidas».
+
+        **Pero una sola sección elegida por coseno también falla, y ahí no hay
+        segunda oportunidad.** Entre secciones de un mismo plan el coseno apenas
+        separa: a «Y con los medicamentos, ¿cómo me los debo tomar?» ganó
+        «Alimentación» con 0,836 y «Medicamentos para el dolor» quedó cuarta con
+        0,812, aun con el título dentro del vector. Vera contestó con comidas
+        livianas. Ninguna regla para elegir una sola arreglaba ese caso sin
+        romper otro —con un margen de desempate léxico, «¿cuándo es la cita con
+        el cirujano?» se iba a «Baño», que dice «cirujano»—.
+
+        Por eso, cuando el paciente nombra el tema de otra sección —una palabra
+        de su título—, entran las dos: dijo «medicamentos» y el título lo dice.
+        La elección final la hace el modelo, que ve el nombre de cada sección en
+        la cita. Cuesta un lugar de guía general solo en ese caso.
+
+        El título, y no el cuerpo: se probó con BM25 sobre el cuerpo y metía
+        secciones por palabras de paso —«vesícula» traía «La cirugía y el alta»
+        a una pregunta por diarrea y le quitaba el lugar a la guía que la
+        responde—. El título es lo único que dice de qué trata la sección.
         """
         del_plan = [i for i, f in enumerate(self.fragmentos) if f.del_paciente]
         if not del_plan:
-            return None
-        i = max(del_plan, key=lambda j: denso[j])
-        return Cita(self.fragmentos[i], float(denso[i]), float(disperso[i]), float(rrf[i]))
+            return []
+        elegidos = [max(del_plan, key=lambda j: denso[j])]
+        dichas = _raices(texto)
+        nombradas = [j for j in del_plan if j not in elegidos
+                     and dichas & _raices(self.fragmentos[j].seccion)]
+        if nombradas:
+            elegidos.append(max(nombradas, key=lambda j: denso[j]))
+        return [Cita(self.fragmentos[i], float(denso[i]), float(disperso[i]), float(rrf[i]))
+                for i in elegidos]
 
     def _veredicto(self, texto: str, citas: list[Cita]) -> Recuperado:
         """Si lo recuperado constituye evidencia suficiente.
