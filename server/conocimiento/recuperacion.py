@@ -24,6 +24,7 @@ from rank_bm25 import BM25Okapi
 
 from server.config import settings
 from server.conocimiento.indice import Fragmento, Indice
+from server.conocimiento.jerga import ampliar
 
 
 @dataclass
@@ -243,6 +244,8 @@ class Recuperador:
     def consultar(self, texto: str, k: int | None = None) -> Recuperado:
         k = k or settings.k_recuperados
         fragmentos = self.fragmentos
+        # Con la jerga traducida a las palabras del corpus. Ver jerga.py.
+        texto = ampliar(texto)
         if not fragmentos:
             return Recuperado([], False, 0.0, 0)
 

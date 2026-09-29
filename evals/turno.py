@@ -15,6 +15,7 @@ import asyncio
 import sys
 
 from server.conocimiento.indice import Fragmento
+from server.conocimiento.jerga import ampliar
 from server.conocimiento.recuperacion import Cita, Recuperado
 from server.dialogo.agenda import PREGUNTA, PREGUNTA_CIERRE
 from server.dialogo.pregunta import es_pregunta, pide_confirmacion
@@ -509,6 +510,17 @@ async def main() -> int:
     await turno(conv, "me refería a que ya no me duele")
     check("una corrección sin pregunta delante busca sola",
           rec.ultima == "me refería a que ya no me duele", str(rec.ultima))
+
+    print("\n== La jerga suma la palabra del corpus a la búsqueda ==")
+    for texto, espera in [
+        ("¿me puedo quitar las curitas?", "¿me puedo quitar las curitas? apósitos"),
+        ("no he podido hacer del cuerpo", "no he podido hacer del cuerpo evacuar estreñimiento"),
+        ("tengo calentura", "tengo calentura fiebre"),
+        ("la materia fecal está normal", "la materia fecal está normal"),
+        ("¿cuándo me puedo bañar?", "¿cuándo me puedo bañar?"),
+    ]:
+        check(f"«{texto}» se busca como «{espera[len(texto):].strip() or '(igual)'}»",
+              ampliar(texto) == espera, ampliar(texto))
 
     print("\n== Una alarma que el reconocedor perdió al cerrar el turno ==")
     # Voz real, 27 de septiembre: la vigilancia vio `critical` en un parcial y

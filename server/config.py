@@ -137,7 +137,8 @@ class Settings(BaseSettings):
     # Y otra vez al entrar el título de la sección al vector, con el arnés
     # exigiendo la sección del plan y no solo el documento: 22/25 respondidas,
     # 24/25 con la fuente correcta, 0 fugas clínicas. A 0,82 aparece una.
-    # Sigue 0,83.
+    # Sigue 0,83. Con la jerga traducida a la búsqueda (conocimiento/jerga.py):
+    # 23/26 respondidas, 26/26 con la fuente correcta, 0 fugas clínicas.
     #
     # OJO: el número NO transfiere. Ni entre modelos de embeddings, ni entre
     # corpus, ni siquiera entre versiones de esta misma capa: al dejar de

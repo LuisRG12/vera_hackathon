@@ -95,6 +95,8 @@ DENTRO_RUIDOSAS = [
     # dentro del vector, no la regla de la sección nombrada.
     ("me duele mucho la herida, ¿qué me tomo?", _PLAN + "Medicamentos para el dolor"),
     ("¿cuándo tengo que ir al hospital?", _PLAN + "Cuándo ir a urgencias de inmediato"),
+    # Jerga que el corpus dice de otra manera: la resuelve server/conocimiento/jerga.py.
+    ("¿me puedo quitar las curitas?", _PLAN + "La cirugía y el alta"),
 ]
 
 # Preguntas reales de una llamada que este corpus NO responde, en dos grupos,
