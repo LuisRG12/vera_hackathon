@@ -140,9 +140,9 @@ clínico. Esto es lo que le faltaba para cumplir la promesa del producto
       diferenciador—; lo que cambia es la pantalla, y la transcripción se traduce
       a demanda con una sola petición
 
-## Etapa 7 — La entrega
+## Etapa 7 — La entrega ✅
 
 - [x] Caso de negocio: usuario concreto, TAM, modelo de ingreso (ver `docs/negocio.md`)
-- [ ] Slides en PDF
-- [ ] Video de 5 minutos
-- [ ] Formulario de lablab completo
+- [x] Slides en PDF
+- [x] Video de 5 minutos
+- [x] Formulario de lablab completo
